@@ -102,7 +102,7 @@ def run_golden_set():
         json.dump(results, f, indent=2)
 
     print("\n" + "=" * 70)
-    print("GOLDEN SET RUN COMPLETE")
+    print("GOLDEN SET RUN COMPLETEted ")
     print("=" * 70)
     print(f"Total questions : {len(questions)}")
     print(f"Flagged/failed  : {len(flagged)}")
