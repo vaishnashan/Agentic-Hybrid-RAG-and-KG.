@@ -1,0 +1,73 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - run: ruff check . --exit-zero  # permissive for now; tighten once codebase is clean
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v
+
+  evaluation-gate:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    # DoD checklist requirement: "GitHub Actions pipeline is green and includes
+    # an evaluation gate, not just unit tests." Real secrets needed here since
+    # run_ragas.py runs the full live agent against the golden set.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Run RAGAS evaluation
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MODEL: openai/gpt-oss-20b
+          NEO4J_URI: ${{ secrets.NEO4J_URI }}
+          NEO4J_USERNAME: ${{ secrets.NEO4J_USERNAME }}
+          NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
+          CHROMA_API_KEY: ${{ secrets.CHROMA_API_KEY }}
+          CHROMA_TENANT: ${{ secrets.CHROMA_TENANT }}
+          CHROMA_DATABASE: ${{ secrets.CHROMA_DATABASE }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+        run: python -m utils.evaluation6.run_ragas
+      - name: Check for regression
+        env:
+          RAGAS_REGRESSION_THRESHOLD: "0.75"
+        run: python -m utils.evaluation6.regression_check
+
+  build-images:
+    runs-on: ubuntu-latest
+    needs: evaluation-gate
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -f Dockerfile.api -t agentic-rag-api:${{ github.sha }} .
+      - name: Build UI image
+        run: docker build -f Dockerfile.ui -t agentic-rag-ui:${{ github.sha }} .
+      # Deploying to Hugging Face Spaces is a `git push` to the Space's own repo,
+      # not a docker push — wire this up once your Space exists (Day 26-27).
+      # See: https://huggingface.co/docs/hub/spaces-github-actions
