@@ -1,3 +1,11 @@
+# 5. Run the API
+uvicorn utils.api7.main:app --reload --port 8000
+
+# 6. Run the UI (separate terminal, API must be running)
+streamlit run ui/app.py
+
+
+
 
 .\venv\Scripts\activate
 

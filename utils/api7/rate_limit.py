@@ -1,6 +1,6 @@
 """
-Rate limiting via slowapi — Day 22-23. Reuses RATE_LIMIT from .env (already
-present as "30/minute" per your existing _env file).
+Rate limiting via slowapi. Reads RATE_LIMIT from .env (defaults to "30/minute"
+if unset).
 
 Limits by client IP by default (get_remote_address) — fine for a public demo;
 if you later add per-API-key limits, swap key_func to read X-API-Key instead.

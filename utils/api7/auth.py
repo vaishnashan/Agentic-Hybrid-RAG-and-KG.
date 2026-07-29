@@ -1,11 +1,9 @@
 """
-Simple API-key auth for the public demo — Day 22-23: "add API-key auth ... so
-the public demo can't be abused."
+Simple API-key auth for the public demo.
 
 Deliberately simple (one shared key via header, not per-user keys/JWT/OAuth) —
-this is a portfolio demo API, not a multi-tenant product. Reuses the API_KEY
-already sitting in your .env (see the _env file from earlier in this project —
-just make sure you rotate it off "change_me_dev_key" before you deploy publicly).
+this is a portfolio demo API, not a multi-tenant product. Reads API_KEY from .env —
+make sure you rotate it off any placeholder value before deploying publicly.
 """
 import os
 

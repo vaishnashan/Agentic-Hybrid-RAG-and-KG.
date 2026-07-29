@@ -55,11 +55,8 @@ python -m utils.evaluation6.regression_check
 uvicorn utils.api7.main:app --reload --port 8000
 
 # 6. Run the UI (separate terminal, API must be running)
-streamlit run utils/ui8/app.py
+streamlit run ui/app.py
 
-# 7. Monitoring dashboard (separate terminal)
-streamlit run utils/observability5/dashboard_metrics.py
-```
 
 ## Running with Docker Compose
 
