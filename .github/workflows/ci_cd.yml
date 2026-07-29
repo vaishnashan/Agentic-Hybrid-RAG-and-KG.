@@ -20,41 +20,11 @@ jobs:
       - name: Install Ruff
         run: pip install ruff
 
-      # NOTE: no --exit-zero here, unlike earlier drafts — this actually fails
-      # the job on any lint violation, which is what blocks the Render deploy
-      # below (via Render's "After CI Checks Pass" setting). Run `ruff check .`
-      # locally first before relying on this — if the codebase has existing
-      # violations, this step (and therefore every deploy) will fail until
-      # they're fixed or this line gets --exit-zero added back.
-      - name: Lint Python code
-              # they're fixed or this line gets --exit-zero added back.
       - name: Lint Python code
         run: ruff check . --exit-zero
 
-      # Docker builds here are the actual CI check Render watches for pass/fail
-      # (via GitHub's Checks API) — Render does its own separate build too when
-      # it deploys, but running it here first fails fast on a broken Dockerfile
-      # instead of failing later mid-deploy.
       - name: Build API Docker image
         run: docker build -f Dockerfile.api -t nova-api .
 
       - name: Build UI Docker image
         run: docker build -f Dockerfile.ui -t nova-ui .
-
-# ---------------------------------------------------------------------------
-# Render setup (one-time, done in the Render dashboard, not in this file):
-#
-# For BOTH the API and UI services:
-#   Settings → Auto-Deploy → set to "After CI Checks Pass"
-#
-# Render then watches this workflow's status on every push to main and only
-# deploys if lint-and-build succeeds. No deploy hook / curl / secrets needed
-# for this — Render reads the GitHub Checks API result directly.
-#
-# Still true regardless of this workflow passing: a green Docker build does
-# NOT guarantee the running app actually works. Missing env vars (GROQ_API_KEY,
-# NEO4J_*, CHROMA_*, UPSTASH_*, API_KEY), wrong start commands, or an
-# unreachable Neo4j Aura instance all only surface once the container is
-# actually running on Render — check the /health endpoint and the Render
-# service logs after each deploy, not just this workflow's green checkmark.
-# ---------------------------------------------------------------------------
