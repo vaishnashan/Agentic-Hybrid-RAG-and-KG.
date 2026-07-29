@@ -19,8 +19,12 @@ def critique(reasoner_output: ReasonerOutput, current_strategy: str, retries_so_
     looks_weak = any(sig in answer_lower for sig in LOW_CONFIDENCE_SIGNALS) or not reasoner_output.used_context_ids
 
     if not looks_weak:
-        return CriticVerdict(confident=True, confidence_score=0.2, should_retry=False)
-
+        return CriticVerdict(
+            confident=True,
+            confidence_score=0.85,
+            issues=[],
+            should_retry=False
+        )
     if retries_so_far >= 1:
         return CriticVerdict(
             confident=False,
