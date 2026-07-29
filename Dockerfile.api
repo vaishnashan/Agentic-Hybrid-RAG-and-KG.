@@ -7,13 +7,21 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY requirements.txt .
+
+# sentence-transformers depends on torch, and a plain `pip install torch` on
+# Linux defaults to the GPU-enabled build — which drags in ~1.2GB of NVIDIA
+# CUDA libraries (cudnn, nccl, cusparselt, etc.) that are completely unused on
+# Render's (or most cloud hosts') CPU-only containers. Installing the
+# CPU-only wheel FIRST satisfies sentence-transformers' torch requirement
+# before pip ever considers the default GPU build.
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copies utils/ (agent4, api7, retrieval2, ingestion1, knowledge_graph3,
-# observability5) AND data/processed/bm25_index.pkl — sparse_retriever.py reads
-# that pickle file directly from disk at query time, so it must ship inside
-# the image, not just the code. See .dockerignore — it deliberately does NOT
-# exclude data/processed.
+# observability5, evaluation6) AND data/processed/bm25_index.pkl —
+# sparse_retriever.py reads that pickle file directly from disk at query
+# time, so it must ship inside the image, not just the code. See
+# .dockerignore — it deliberately does NOT exclude data/processed.
 COPY . .
 
 # Run as non-root — no reason this process needs root inside the container.
