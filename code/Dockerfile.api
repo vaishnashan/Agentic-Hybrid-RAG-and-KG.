@@ -22,12 +22,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # sparse_retriever.py reads that pickle file directly from disk at query
 # time, so it must ship inside the image, not just the code. See
 # .dockerignore — it deliberately does NOT exclude data/processed.
-
-RUN python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; \
-SentenceTransformer('BAAI/bge-small-en-v1.5'); \
-CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
-
-
 COPY . .
 
 # Run as non-root — no reason this process needs root inside the container.
