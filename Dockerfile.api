@@ -31,6 +31,10 @@ USER appuser
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+    CMD python -c "import os, urllib.request; urllib.request.urlopen('http://localhost:' + os.getenv('PORT','8000') + '/health')" || exit 1
 
-CMD ["uvicorn", "utils.api7.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Shell form (not exec-array form) so $PORT actually gets expanded — Render
+# assigns its own PORT at runtime and expects the app to listen on THAT, not
+# on a hardcoded port. Falls back to 8000 so local docker-compose (which maps
+# a fixed 8000:8000) keeps working unchanged.
+CMD ["sh", "-c", "uvicorn utils.api7.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
