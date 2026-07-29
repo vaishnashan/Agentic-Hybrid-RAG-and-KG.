@@ -1,5 +1,8 @@
-# UI service — Streamlit demo frontend, talks to the API container over HTTP.
+# UI service — Streamlit demo frontend, talks to the API container/service over HTTP.
 FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
@@ -8,6 +11,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+RUN useradd --create-home appuser
+USER appuser
+
 EXPOSE 8501
 
-CMD ["streamlit", "run", "utils/ui8/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')" || exit 1
+
+# FIXED: was "utils/ui8/app.py" — doesn't exist in this repo. The real file is
+# the top-level ui/app.py (sibling of utils/, not nested inside it).
+CMD ["streamlit", "run", "ui/app.py", "--server.port=8501", "--server.address=0.0.0.0"]

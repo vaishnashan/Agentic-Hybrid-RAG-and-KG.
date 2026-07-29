@@ -22,8 +22,10 @@ tenacity
 pybreaker
 
 # --- Evaluation (Week 3) ---
-
 datasets
+ragas
+langchain-groq
+langchain-huggingface
 
 # --- Observability (Week 3) ---
 langfuse

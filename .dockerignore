@@ -1,0 +1,24 @@
+# Never bake secrets into the image — env vars are passed at runtime instead
+# (via env_file in docker-compose, or the host's environment/secrets panel).
+.env
+
+# Local dev cruft — not needed inside the image, and venv especially would
+# bloat it enormously (it's your local Python install, not a dependency list).
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.git/
+.github/
+
+# Not needed at runtime by api7/ui — docs and eval reports are dev-time only.
+documentation/
+utils/evaluation6/reports/
+
+# Personal/local notes, irrelevant to the running app.
+vaishnavi.txt
+
+# IMPORTANT: do NOT add data/ or data/processed/ here.
+# sparse_retriever.py loads data/processed/bm25_index.pkl directly from disk
+# at query time — excluding it would make hybrid-strategy questions crash in
+# production while looking completely fine in local testing.

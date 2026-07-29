@@ -1,9 +1,9 @@
-
 *.pyc
 data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+!data/processed/bm25_index.pkl
 *.log
 .venv/
 .pytest_cache/
