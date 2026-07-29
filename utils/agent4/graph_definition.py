@@ -3,6 +3,12 @@ Wires planner -> router -> retriever -> reasoner -> compose into a LangGraph
 StateGraph. This is the actual "agent" — the piece that turns retrieval + the
 knowledge graph into one system that answers a question end to end.
 
+Each node's real work is wrapped in a tracing.RequestTrace span (plan/retrieve/
+reason/compose), so every ask() call produces a full trace — visible in Langfuse
+if configured, and always appended to the local traces.jsonl regardless (tracing
+fails open, same pattern as cache.py). trace.finish() is called on every exit path
+(validation reject, cache hit, full run) so the root span always closes and flushes.
+
 No self-critic / retry loop: the composed answer from the LLM is treated as final.
 (self_critic.py still exists in the codebase but is no longer wired in here — delete
 it if you don't plan to reintroduce it later.)
@@ -12,7 +18,7 @@ Each sub-question is routed and retrieved independently (a "compare X and Y" que
 often needs different strategies for X than for Y), reasoned over independently, and
 then all sub-answers are composed into one final answer.
 """
-from typing import TypedDict, List, Optional
+from typing import TypedDict, List, Optional, Any
 
 from langgraph.graph import StateGraph, END
 
@@ -26,10 +32,12 @@ from utils.retrieval2.hybrid_merge import hybrid_search
 from utils.retrieval2.reranker import rerank
 from utils.agent4.cache import get_cached_answer, set_cached_answer
 from utils.agent4.input_validation import validate_input
+from utils.observability5.tracing import RequestTrace
 
 
 class AgentState(TypedDict):
     question: str
+    trace: Any  # RequestTrace — not a Pydantic/dataclass field, just carried through state
     sub_questions: List[SubQuestion]
     current_sub_index: int
     sub_answers: List[dict]  # {"sub_question", "answer", "used_context_ids", "graph_facts", "strategy"}
@@ -44,7 +52,8 @@ class AgentState(TypedDict):
 
 def node_plan(state: AgentState) -> AgentState:
     print("\n[PLAN] Analyzing question...")
-    planner_output = plan(state["question"])
+    with state["trace"].span("plan", question=state["question"]):
+        planner_output = plan(state["question"])
     print(f"[PLAN] is_multi_hop={planner_output.is_multi_hop}, "
           f"sub_questions={[sq.text for sq in planner_output.sub_questions]}")
 
@@ -65,26 +74,27 @@ def node_retrieve(state: AgentState) -> AgentState:
     print(f"[ROUTE] reason: {route_decision.reason}")
     state["strategy"] = strategy
 
-    if strategy == "vector_only":
-        candidates = dense_search(sub_q.text, top_k=20)
-        print(f"[RETRIEVE] dense_search returned {len(candidates)} candidates")
-    else:
-        candidates = hybrid_search(sub_q.text, top_k=20)
-        print(f"[RETRIEVE] hybrid_search returned {len(candidates)} candidates")
+    with state["trace"].span("retrieve", sub_question=sub_q.text, sub_question_index=idx, strategy=strategy):
+        if strategy == "vector_only":
+            candidates = dense_search(sub_q.text, top_k=20)
+            print(f"[RETRIEVE] dense_search returned {len(candidates)} candidates")
+        else:
+            candidates = hybrid_search(sub_q.text, top_k=20)
+            print(f"[RETRIEVE] hybrid_search returned {len(candidates)} candidates")
 
-    reranked = rerank(sub_q.text, candidates, top_k=5)
-    state["context_chunks"] = reranked
-    print(f"[RETRIEVE] reranker kept top {len(reranked)} chunks")
-    for c in reranked:
-        print(f"    - {c.chunk_id} (score={c.score:.3f}) {c.metadata.get('title', '')[:50]}")
+        reranked = rerank(sub_q.text, candidates, top_k=5)
+        state["context_chunks"] = reranked
+        print(f"[RETRIEVE] reranker kept top {len(reranked)} chunks")
+        for c in reranked:
+            print(f"    - {c.chunk_id} (score={c.score:.3f}) {c.metadata.get('title', '')[:50]}")
 
-    # KG is attempted for every question regardless of strategy — safe_graph_query()
-    # soft-fails to [] if the graph is unreachable or no known concept is mentioned.
-    print("[RETRIEVE] Querying knowledge graph (optional — soft-fails to [] if unavailable)...")
-    state["graph_facts"] = safe_graph_query(sub_q.text)
-    print(f"[RETRIEVE] Graph returned {len(state['graph_facts'])} fact(s)")
-    for f in state["graph_facts"]:
-        print(f"    - {f}")
+        # KG is attempted for every question regardless of strategy — safe_graph_query()
+        # soft-fails to [] if the graph is unreachable or no known concept is mentioned.
+        print("[RETRIEVE] Querying knowledge graph (optional — soft-fails to [] if unavailable)...")
+        state["graph_facts"] = safe_graph_query(sub_q.text)
+        print(f"[RETRIEVE] Graph returned {len(state['graph_facts'])} fact(s)")
+        for f in state["graph_facts"]:
+            print(f"    - {f}")
 
     return state
 
@@ -94,13 +104,15 @@ def node_reason(state: AgentState) -> AgentState:
     sub_q = state["sub_questions"][idx]
     print(f"\n[REASON] Drafting answer for sub-question {idx + 1}/{len(state['sub_questions'])}...")
 
-    result = reason(sub_q.text, state["context_chunks"], state["graph_facts"])
+    with state["trace"].span("reason", sub_question=sub_q.text, sub_question_index=idx):
+        result = reason(sub_q.text, state["context_chunks"], state["graph_facts"])
     print(f"[REASON] Draft answer: {result.draft_answer[:200]}")
 
     state["sub_answers"].append({
         "sub_question": sub_q.text,
         "answer": result.draft_answer,
         "used_context_ids": result.used_context_ids,
+        "context_texts": [c.text for c in state["context_chunks"]],  # real text, for RAGAS faithfulness scoring
         "graph_facts": state["graph_facts"],
         "strategy": state["strategy"],
     })
@@ -117,7 +129,8 @@ def has_more_subquestions(state: AgentState) -> str:
 def node_compose(state: AgentState) -> AgentState:
     print(f"\n[COMPOSE] Combining {len(state['sub_answers'])} sub-answer(s) into final answer...")
 
-    combined = compose_multi_hop_answer(state["question"], state["sub_answers"])
+    with state["trace"].span("compose", n_sub_answers=len(state["sub_answers"])):
+        combined = compose_multi_hop_answer(state["question"], state["sub_answers"])
 
     used_ids: List[str] = []
     used_facts: List[str] = []
@@ -163,33 +176,24 @@ def build_agent_graph():
     return graph.compile()
 
 
-def ask(question: str) -> FinalAnswer:
-    print("=" * 70)
-    print(f"AGENT STARTED — Question: {question}")
-    print("=" * 70)
+def run_pipeline(question: str, trace: Optional[RequestTrace] = None) -> AgentState:
+    """
+    Runs the full plan -> retrieve -> reason -> compose graph and returns the
+    COMPLETE final state — not just the FinalAnswer. ask() uses this for the normal
+    request path (cache-aware); evaluation scripts (run_golden_set.py, run_ragas.py)
+    call this directly instead, because they need the retrieved context text and
+    per-sub-question breakdown, not just the composed answer + chunk IDs.
 
-    validation = validate_input(question)
-    if not validation.is_valid:
-        print(f"[GUARDRAILS] REJECTED — {validation.reason}")
-        return FinalAnswer(
-            question=question,
-            answer=f"Request rejected: {validation.reason}",
-            sources=[],
-            confidence=0.0,
-            strategy_used="rejected",
-            retries=0,
-        )
-    print("[GUARDRAILS] Input passed validation.")
-
-    cached = get_cached_answer(question)
-    if cached is not None:
-        print("[CACHE] HIT — returning cached answer, skipping retrieval + LLM calls.")
-        return FinalAnswer(**cached)
-    print("[CACHE] MISS — running full pipeline.")
+    Always a fresh run — no cache check here. Evaluation should never be shortcut by
+    a cached answer from a previous (possibly differently-configured) run.
+    """
+    if trace is None:
+        trace = RequestTrace(question)
 
     app = build_agent_graph()
     initial_state: AgentState = {
         "question": question,
+        "trace": trace,
         "sub_questions": [],
         "current_sub_index": 0,
         "sub_answers": [],
@@ -201,7 +205,40 @@ def ask(question: str) -> FinalAnswer:
         "used_graph_facts": [],
         "final_answer": None,
     }
-    result_state = app.invoke(initial_state)
+    return app.invoke(initial_state)
+
+
+def ask(question: str) -> FinalAnswer:
+    print("=" * 70)
+    print(f"AGENT STARTED — Question: {question}")
+    print("=" * 70)
+
+    trace = RequestTrace(question)
+
+    validation = validate_input(question)
+    if not validation.is_valid:
+        print(f"[GUARDRAILS] REJECTED — {validation.reason}")
+        final = FinalAnswer(
+            question=question,
+            answer=f"Request rejected: {validation.reason}",
+            sources=[],
+            confidence=0.0,
+            strategy_used="rejected",
+            retries=0,
+        )
+        trace.finish(final.model_dump())
+        return final
+    print("[GUARDRAILS] Input passed validation.")
+
+    cached = get_cached_answer(question)
+    if cached is not None:
+        print("[CACHE] HIT — returning cached answer, skipping retrieval + LLM calls.")
+        final = FinalAnswer(**cached)
+        trace.finish({**final.model_dump(), "cache_hit": True})
+        return final
+    print("[CACHE] MISS — running full pipeline.")
+
+    result_state = run_pipeline(question, trace)
     final = result_state["final_answer"]
 
     print("\n" + "=" * 70)
@@ -217,6 +254,7 @@ def ask(question: str) -> FinalAnswer:
     cache_success = set_cached_answer(question, final.model_dump())
     print(f"[CACHE] {'Stored' if cache_success else 'Store failed (Upstash unreachable) — not fatal'}")
 
+    trace.finish(final.model_dump())
     return final
 
 

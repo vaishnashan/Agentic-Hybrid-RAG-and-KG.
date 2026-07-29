@@ -1,115 +1,157 @@
 """
-Runs RAGAS (faithfulness, answer relevance, context precision) against the golden
-evaluation set and stores results as a versioned baseline for regression_check.py.
+RAGAS-based quality scoring — a numeric alternative to "looks right to me".
 
-FIX vs the original draft: RAGAS's "contexts" field must be the actual retrieved
-chunk texts the reasoner saw — not the answer text. Feeding it the answer instead
-of the context makes "faithfulness" and "context precision" meaningless (you'd be
-checking whether the answer is faithful to itself). This requires FinalAnswer to
-carry the retrieved context text through, which is a small addition to schemas.py
-and graph_definition.py — see the two small diffs noted at the bottom of this file.
+Scores two metrics that do NOT require a hand-written reference/ground-truth
+answer (only question + answer + retrieved contexts are needed):
 
-Expects data/golden_eval_set.json shaped like:
-[
-  {"question": "...", "ground_truth": "...", "expected_multi_hop": false},
-  ...
-]
+    faithfulness      — is the answer actually supported by the retrieved context,
+                         or did the LLM state things the context doesn't back up?
+    answer_relevancy  — does the answer actually address the question asked?
+
+context_precision / context_recall are deliberately NOT included here — those need
+a hand-written reference answer per question to judge retrieval quality against,
+which golden_set.json doesn't currently provide. Add a "reference_answer" field per
+item and wire those metrics in later if you want retrieval-quality scoring
+specifically, as opposed to answer-quality scoring.
+
+RAGAS defaults to OpenAI for its judge LLM and embeddings. This project only has a
+GROQ_API_KEY configured, so both are swapped: Groq (via langchain-groq) as the judge,
+and the same BGE embedding model dense_retriever.py already uses (via
+langchain-huggingface) — no new API key needed.
+
+Evaluated PER SUB-QUESTION, not per top-level question: each sub-answer is judged
+against the specific context chunks retrieved and used to generate IT, which is what
+faithfulness is actually meant to check. Single-hop questions produce one row;
+multi-hop questions produce one row per hop, so you can see if one hop is dragging
+the average down instead of only getting one blended score for the whole thing.
+
+Always bypasses the cache (calls run_pipeline() directly, not ask()).
+
+Requires (not part of the core pipeline's dependencies):
+    pip install ragas datasets langchain-groq langchain-huggingface
+
+NOTE: RAGAS's exact API has shifted across versions (this targets a "ragas>=0.2"
+style API — Dataset-based evaluate(), LangchainLLMWrapper/LangchainEmbeddingsWrapper
+for custom providers). If your installed version differs, check the ragas.metrics /
+ragas.llms / ragas.embeddings import paths still match — same kind of version caveat
+as tracing.py has for Langfuse v4.
 """
 import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from datasets import Dataset
-from ragas import evaluate
-from ragas.metrics import faithfulness, answer_relevancy, context_precision
+from dotenv import load_dotenv
 
-from utils.ingestion1.loader import PROJECT_ROOT
-from utils.agent4.graph_definition import ask
+from utils.agent4.graph_definition import run_pipeline
+from utils.evaluation6.run_golden_set import load_golden_set, REPORTS_DIR
 
-GOLDEN_SET_PATH = PROJECT_ROOT / "data" / "golden_eval_set.json"
-REPORTS_DIR = Path(__file__).resolve().parent / "reports"
+load_dotenv()
 
-
-def load_golden_set():
-    with open(GOLDEN_SET_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+EMBEDDING_MODEL_NAME = "BAAI/bge-small-en-v1.5"  # same model dense_retriever.py embeds chunks with
 
 
-def run_agent_over_golden_set(golden_set):
-    questions, answers, contexts, ground_truths = [], [], [], []
+def _build_ragas_llm_and_embeddings():
+    """Wires RAGAS's judge LLM + embeddings to Groq/BGE instead of the OpenAI
+    default, since that's the only API key this project has configured."""
+    from langchain_groq import ChatGroq
+    from langchain_huggingface import HuggingFaceEmbeddings
+    from ragas.llms import LangchainLLMWrapper
+    from ragas.embeddings import LangchainEmbeddingsWrapper
+
+    if not GROQ_API_KEY:
+        raise RuntimeError("GROQ_API_KEY not set — RAGAS needs a judge LLM to score faithfulness/relevancy.")
+
+    chat = ChatGroq(model=GROQ_MODEL, api_key=GROQ_API_KEY, temperature=0.0)
+    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+
+    return LangchainLLMWrapper(chat), LangchainEmbeddingsWrapper(embeddings)
+
+
+def collect_ragas_rows() -> list:
+    """
+    Runs every golden-set question through the full pipeline and flattens the
+    result into one row per SUB-QUESTION: {golden_id, question, answer, contexts}.
+    """
+    golden_set = load_golden_set()
+    rows = []
 
     for item in golden_set:
-        result = ask(item["question"])
-        questions.append(item["question"])
-        answers.append(result.answer)
-        # Real retrieved context, not the answer — see FinalAnswer.retrieved_context
-        # (added in schemas.py) and graph_definition.py's node_critique, which now
-        # populates it from state["context_chunks"] before building FinalAnswer.
-        context_texts = result.retrieved_context or ["(no context was retrieved)"]
-        contexts.append(context_texts)
-        ground_truths.append(item["ground_truth"])
+        print(f"[RAGAS] Running: {item['id']} — {item['question']}")
+        result_state = run_pipeline(item["question"])
 
-    return Dataset.from_dict(
-        {
-            "question": questions,
-            "answer": answers,
-            "contexts": contexts,
-            "ground_truth": ground_truths,
-        }
+        for sa in result_state["sub_answers"]:
+            rows.append({
+                "golden_id": item["id"],
+                "question": sa["sub_question"],
+                "answer": sa["answer"],
+                "contexts": sa.get("context_texts") or ["(no context retrieved)"],
+            })
+
+    return rows
+
+
+def run_ragas_eval() -> dict:
+    from datasets import Dataset
+    from ragas import evaluate
+    from ragas.metrics import faithfulness, answer_relevancy
+
+    rows = collect_ragas_rows()
+    if not rows:
+        raise RuntimeError("No rows collected — check golden_set.json isn't empty.")
+
+    dataset = Dataset.from_dict({
+        "question": [r["question"] for r in rows],
+        "answer": [r["answer"] for r in rows],
+        "contexts": [r["contexts"] for r in rows],
+    })
+
+    llm, embeddings = _build_ragas_llm_and_embeddings()
+
+    print(f"\n[RAGAS] Scoring {len(rows)} sub-question row(s) with faithfulness + answer_relevancy...")
+    result = evaluate(
+        dataset,
+        metrics=[faithfulness, answer_relevancy],
+        llm=llm,
+        embeddings=embeddings,
     )
+    scored_df = result.to_pandas()
 
+    per_row = []
+    for i in range(len(scored_df)):
+        row = scored_df.iloc[i]
+        faith = row["faithfulness"]
+        rel = row["answer_relevancy"]
+        per_row.append({
+            "golden_id": rows[i]["golden_id"],
+            "question": row["question"],
+            "faithfulness": None if faith != faith else float(faith),      # NaN-safe (RAGAS can return NaN if judging failed)
+            "answer_relevancy": None if rel != rel else float(rel),
+        })
 
-def run_ragas_eval():
-    golden_set = load_golden_set()
-    print(f"Loaded {len(golden_set)} golden-set questions from {GOLDEN_SET_PATH}")
-
-    dataset = run_agent_over_golden_set(golden_set)
-
-    result = evaluate(dataset, metrics=[faithfulness, answer_relevancy, context_precision])
-    scores = {k: float(v) for k, v in result.items()}
+    summary = {
+        "run_at": datetime.now(timezone.utc).isoformat(),
+        "n_rows": len(rows),
+        "mean_faithfulness": float(scored_df["faithfulness"].mean()),
+        "mean_answer_relevancy": float(scored_df["answer_relevancy"].mean()),
+        "per_row": per_row,
+    }
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    report_path = REPORTS_DIR / f"ragas_{timestamp}.json"
-    with open(report_path, "w") as f:
-        json.dump(scores, f, indent=2)
+    report_path = REPORTS_DIR / f"ragas_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
+    with open(report_path, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2, ensure_ascii=False)
 
-    # Also write/overwrite a stable "latest" pointer for regression_check.py
-    with open(REPORTS_DIR / "ragas_latest.json", "w") as f:
-        json.dump(scores, f, indent=2)
+    print("\n" + "=" * 70)
+    print(f"RAGAS COMPLETE — mean faithfulness={summary['mean_faithfulness']:.3f}, "
+          f"mean answer_relevancy={summary['mean_answer_relevancy']:.3f}")
+    print(f"Report written to: {report_path}")
+    print("=" * 70)
 
-    print(f"RAGAS scores: {scores}")
-    print(f"Saved report to {report_path}")
-    return scores
+    return summary
 
 
 if __name__ == "__main__":
     run_ragas_eval()
-
-# ---------------------------------------------------------------------------
-# Two small companion diffs needed for `result.retrieved_context` to exist:
-#
-# schemas.py — add one field to FinalAnswer:
-#
-#     class FinalAnswer(BaseModel):
-#         question: str
-#         answer: str
-#         sources: List[str]
-#         confidence: float
-#         strategy_used: str
-#         retries: int = 0
-#         retrieved_context: List[str] = Field(default_factory=list)   # <-- add this
-#
-# graph_definition.py — in node_critique(), when building FinalAnswer, add:
-#
-#     state["final_answer"] = FinalAnswer(
-#         question=state["question"],
-#         answer=state["draft_answer"],
-#         sources=state["used_context_ids"],
-#         confidence=state["confidence"],
-#         strategy_used=state["strategy"],
-#         retries=state["retries"],
-#         retrieved_context=[c.text for c in state["context_chunks"]],  # <-- add this
-#     )
-# ---------------------------------------------------------------------------

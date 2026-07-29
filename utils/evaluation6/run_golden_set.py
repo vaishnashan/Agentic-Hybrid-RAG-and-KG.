@@ -1,124 +1,116 @@
 """
-Runs the full agent pipeline against every question in the golden evaluation set
-(data/golden_eval_set.json) and reports results — this is the Week 2 Day 11-14
-requirement: "run the full pipeline against the Week 1 golden set and fix obvious
-failures."
+Golden-set evaluation: runs a small, hand-curated set of question -> expected-signal
+pairs through the full agent pipeline and checks each answer against cheap,
+deterministic expectations — keyword presence in the answer, and (optionally)
+whether the planner/router made the hop/strategy decision you expect.
 
-This does NOT do automated scoring against ground_truth (that's RAGAS's job, Week 3)
-— it runs each question for real, surfaces confidence/retries/strategy per question,
-and flags anything that looks broken (exceptions, rejected input, very low confidence,
-or an empty answer) so you can manually spot-check and fix obvious failures now,
-before the more rigorous Week 3 evaluation.
+This is NOT semantic quality scoring (see run_ragas.py for that) — it's a fast
+smoke test you can run after any prompt/code change to catch obvious regressions
+("did single-hop routing just start returning hybrid_both for everything?")
+before reaching for the heavier, slower RAGAS pass.
+
+The golden set (golden_set.json) is hand-written and hand-checked, never
+LLM-generated — the whole point is a human-verified ground truth to compare
+against, not another model's opinion. EDIT golden_set.json to match your actual
+corpus; the shipped starter set uses names mentioned in early testing (SkillOpt,
+Agent Skills, MRKL, Gorilla) and needs to be replaced with real Q&A pairs from
+your indexed papers.
+
+Always bypasses the cache (calls run_pipeline() directly, not ask()) — eval should
+never be shortcut by a stale cached answer from a previous run.
 """
 import json
-import time
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
-from utils.ingestion1.loader import PROJECT_ROOT
-from utils.agent4.graph_definition import ask
+from utils.agent4.graph_definition import run_pipeline
 
-GOLDEN_SET_PATH = PROJECT_ROOT / "data" / "golden_eval_set.json"
-RESULTS_PATH = PROJECT_ROOT / "data" / "processed" / "golden_set_results.json"
-
-LOW_CONFIDENCE_THRESHOLD = 0.5
+GOLDEN_SET_PATH = Path(__file__).resolve().parent / "golden_set.json"
+REPORTS_DIR = Path(__file__).resolve().parent / "reports"
 
 
-def load_golden_set(path: Path = GOLDEN_SET_PATH) -> list:
-    if not path.exists():
-        raise FileNotFoundError(f"Golden eval set not found at {path}")
-    with path.open("r", encoding="utf-8") as f:
+def load_golden_set() -> list:
+    with open(GOLDEN_SET_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def run_golden_set():
-    questions = load_golden_set()
-    print("=" * 70)
-    print(f"RUNNING GOLDEN SET: {len(questions)} questions")
-    print("=" * 70)
+def _check_item(item: dict, final_answer, sub_questions: list) -> dict:
+    answer_lower = final_answer.answer.lower()
 
+    keyword_hits, keyword_misses = [], []
+    for kw in item.get("expected_answer_contains", []):
+        (keyword_hits if kw.lower() in answer_lower else keyword_misses).append(kw)
+    keywords_passed = len(keyword_misses) == 0
+
+    multi_hop_actual = len(sub_questions) > 1
+    multi_hop_expected = item.get("expected_multi_hop")
+    multi_hop_passed = (multi_hop_expected is None) or (multi_hop_actual == multi_hop_expected)
+
+    strategy_expected = item.get("expected_strategy")
+    strategy_passed = (strategy_expected is None) or (final_answer.strategy_used == strategy_expected)
+
+    return {
+        "id": item["id"],
+        "question": item["question"],
+        "passed": keywords_passed and multi_hop_passed and strategy_passed,
+        "keywords_passed": keywords_passed,
+        "keyword_hits": keyword_hits,
+        "keyword_misses": keyword_misses,
+        "multi_hop_passed": multi_hop_passed,
+        "multi_hop_expected": multi_hop_expected,
+        "multi_hop_actual": multi_hop_actual,
+        "strategy_passed": strategy_passed,
+        "strategy_expected": strategy_expected,
+        "strategy_actual": final_answer.strategy_used,
+        "answer_preview": final_answer.answer[:200],
+    }
+
+
+def run_golden_set() -> dict:
+    golden_set = load_golden_set()
     results = []
-    flagged = []
 
-    for index, item in enumerate(questions, start=1):
-        question = item["question"]
-        expected_multi_hop = item.get("expected_multi_hop", False)
+    for item in golden_set:
+        print(f"\n[GOLDEN] Running: {item['id']} — {item['question']}")
+        result_state = run_pipeline(item["question"])
+        final = result_state["final_answer"]
+        sub_questions = result_state["sub_questions"]
 
-        print(f"\n[{index}/{len(questions)}] {question}")
-        start = time.perf_counter()
+        check = _check_item(item, final, sub_questions)
+        print(f"[GOLDEN] {'PASS' if check['passed'] else 'FAIL'} — {item['id']}")
+        if check["keyword_misses"]:
+            print(f"    missing keywords: {check['keyword_misses']}")
+        if not check["multi_hop_passed"]:
+            print(f"    multi_hop mismatch: expected={check['multi_hop_expected']}, actual={check['multi_hop_actual']}")
+        if not check["strategy_passed"]:
+            print(f"    strategy mismatch: expected={check['strategy_expected']}, actual={check['strategy_actual']}")
+        results.append(check)
 
-        try:
-            answer = ask(question)
-            elapsed = time.perf_counter() - start
+    n_passed = sum(1 for r in results if r["passed"])
+    summary = {
+        "run_at": datetime.now(timezone.utc).isoformat(),
+        "n_total": len(results),
+        "n_passed": n_passed,
+        "pass_rate": round(n_passed / len(results), 3) if results else 0.0,
+        "results": results,
+    }
 
-            issues = []
-            if answer.strategy_used == "rejected":
-                issues.append("Input was rejected by guardrails")
-            if not answer.answer or not answer.answer.strip():
-                issues.append("Empty answer")
-            if answer.confidence < LOW_CONFIDENCE_THRESHOLD:
-                issues.append(f"Low confidence ({answer.confidence})")
-            actual_multi_hop_strategy = answer.strategy_used in ("hybrid_both", "graph_only")
-            if expected_multi_hop and not actual_multi_hop_strategy:
-                issues.append(
-                    f"Expected multi-hop routing but got strategy='{answer.strategy_used}'"
-                )
-
-            result_record = {
-                "question": question,
-                "expected_multi_hop": expected_multi_hop,
-                "answer": answer.answer,
-                "confidence": answer.confidence,
-                "strategy_used": answer.strategy_used,
-                "retries": answer.retries,
-                "sources": answer.sources,
-                "elapsed_seconds": round(elapsed, 2),
-                "issues": issues,
-            }
-            results.append(result_record)
-
-            status = "FLAGGED" if issues else "OK"
-            print(f"  [{status}] confidence={answer.confidence}, strategy={answer.strategy_used}, "
-                  f"retries={answer.retries}, time={elapsed:.1f}s")
-            if issues:
-                flagged.append(result_record)
-                for issue in issues:
-                    print(f"    - {issue}")
-
-        except Exception as exc:
-            elapsed = time.perf_counter() - start
-            print(f"  [CRASHED] {exc}")
-            result_record = {
-                "question": question,
-                "expected_multi_hop": expected_multi_hop,
-                "error": str(exc),
-                "elapsed_seconds": round(elapsed, 2),
-                "issues": [f"Pipeline crashed: {exc}"],
-            }
-            results.append(result_record)
-            flagged.append(result_record)
-
-    RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with RESULTS_PATH.open("w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2)
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    report_path = REPORTS_DIR / f"golden_set_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
+    with open(report_path, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2, ensure_ascii=False)
 
     print("\n" + "=" * 70)
-    print("GOLDEN SET RUN COMPLETEted ")
+    print(f"GOLDEN SET COMPLETE — {n_passed}/{len(results)} passed ({summary['pass_rate']*100:.1f}%)")
+    print(f"Report written to: {report_path}")
     print("=" * 70)
-    print(f"Total questions : {len(questions)}")
-    print(f"Flagged/failed  : {len(flagged)}")
-    print(f"Clean           : {len(questions) - len(flagged)}")
-    print(f"Results saved to: {RESULTS_PATH}")
 
-    if flagged:
-        print("\nFlagged questions (worth reviewing before moving to Week 3):")
-        for r in flagged:
-            print(f"  - {r['question']}")
-            for issue in r.get("issues", []):
-                print(f"      {issue}")
-
-    print("=" * 70)
-    return results
+    return summary
 
 
 if __name__ == "__main__":
-    run_golden_set()
+    summary = run_golden_set()
+    # Non-zero exit code on any failure — usable as a CI gate later even without
+    # a separate regression_check.py (that just diffs two of these reports).
+    sys.exit(0 if summary["n_passed"] == summary["n_total"] else 1)
