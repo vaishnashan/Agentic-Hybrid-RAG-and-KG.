@@ -1,40 +1,46 @@
 """
-Router node: given a (sub-)question, decides whether to hit hybrid retrieval, the
-knowledge graph, or both. Stays rule-based (cheap, deterministic, fast) — an LLM
-classifier would add latency/cost for a decision this simple already handles well.
+Router node: given a (sub-)question, decides whether to use vector-only or hybrid
+retrieval. This is a strict, deterministic rule tied to hop-type — nothing else
+overrides it:
+
+    single-hop  -> vector_only
+    multi-hop   -> hybrid_both
+
+The knowledge graph is NOT decided here. It's attempted for every question
+regardless of strategy (see node_retrieve in graph_definition.py) — safe_graph_query()
+in fallback.py already soft-fails to [] if the graph is unreachable or no known
+concept is mentioned, so treating it as "always try, silently optional" is safe and
+doesn't need a routing decision of its own.
+
+Note: this used to also check for relational keywords ("compare", "between", ...) or
+a matched concept name and bump single-hop questions to hybrid_both on that basis.
+That's been removed so the strategy is fully predictable from hop-type alone — if you
+want that keyword signal back (e.g. a single-hop question that's still clearly
+relational), it can be re-added as an explicit second input to route(), rather than
+silently overriding the hop-type decision.
 """
 from utils.agent4.schemas import RouteDecision
-from utils.knowledge_graph3.schema import SEED_CONCEPTS
-
-# Relational/multi-hop signal words, plus: if the question directly names one of our
-# known concepts, that's also a strong signal the KG can help (not just plain-text signals).
-GRAPH_SIGNALS = [
-    "relationship", "connect", "compare", "cite", "between", "both",
-    "which papers", "across", "related to", "similar to",
-]
 
 
 def route(question: str, requires_graph_hint: bool = False) -> RouteDecision:
-    q_lower = question.lower()
-
-    matched_concepts = [c for c in SEED_CONCEPTS if c.lower() in q_lower]
-
-    if requires_graph_hint or any(sig in q_lower for sig in GRAPH_SIGNALS) or len(matched_concepts) >= 1:
-        reason = "Multi-hop / relational signal detected."
-        if matched_concepts:
-            reason += f" Matched known concept(s): {matched_concepts}."
-        return RouteDecision(strategy="hybrid_both", reason=reason)
-
-    return RouteDecision(strategy="vector_only", reason="Looks like a simple lookup question.")
+    if requires_graph_hint:
+        return RouteDecision(
+            strategy="hybrid_both",
+            reason="Multi-hop question — using hybrid (dense + sparse) retrieval.",
+        )
+    return RouteDecision(
+        strategy="vector_only",
+        reason="Single-hop question — vector-only retrieval is sufficient.",
+    )
 
 
 if __name__ == "__main__":
     tests = [
-        "What is SkillOpt?",
-        "Which papers discuss Agent Skills?",
-        "Compare MRKL and Gorilla's approach to tool use.",
+        ("What is SkillOpt?", False),
+        ("Which papers discuss Agent Skills?", False),
+        ("Compare MRKL and Gorilla's approach to tool use.", True),
     ]
-    for q in tests:
-        decision = route(q)
-        print(f"Q: {q}")
+    for q, is_multi_hop in tests:
+        decision = route(q, requires_graph_hint=is_multi_hop)
+        print(f"Q: {q} (multi_hop={is_multi_hop})")
         print(f"  strategy={decision.strategy} | {decision.reason}\n")
