@@ -176,6 +176,12 @@ def build_agent_graph():
     return graph.compile()
 
 
+# Compiled once at import time and reused across every request — building
+# and compiling a fresh StateGraph on every single call (as before) is pure
+# wasted work; the compiled graph is stateless and safe to share.
+_compiled_agent_graph = build_agent_graph()
+
+
 def run_pipeline(question: str, trace: Optional[RequestTrace] = None) -> AgentState:
     """
     Runs the full plan -> retrieve -> reason -> compose graph and returns the
@@ -190,7 +196,7 @@ def run_pipeline(question: str, trace: Optional[RequestTrace] = None) -> AgentSt
     if trace is None:
         trace = RequestTrace(question)
 
-    app = build_agent_graph()
+    app = _compiled_agent_graph
     initial_state: AgentState = {
         "question": question,
         "trace": trace,

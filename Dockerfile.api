@@ -17,21 +17,31 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-download the embedding + reranker models INTO THE IMAGE at build time.
+# Without this, dense_retriever.py / reranker.py lazy-load them on the first
+# real request instead — meaning the first query after every container start
+# pays the full HF Hub download cost (slower still since it's unauthenticated),
+# often blowing past the UI's request timeout. Baking them in means every
+# container starts with both models already on disk, cold or not.
+ENV HF_HOME=/app/.cache/huggingface
+RUN python -c "\
+from sentence_transformers import SentenceTransformer, CrossEncoder; \
+SentenceTransformer('BAAI/bge-small-en-v1.5'); \
+CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
+
 # Copies utils/ (agent4, api7, retrieval2, ingestion1, knowledge_graph3,
 # observability5, evaluation6) AND data/processed/bm25_index.pkl —
 # sparse_retriever.py reads that pickle file directly from disk at query
 # time, so it must ship inside the image, not just the code. See
 # .dockerignore — it deliberately does NOT exclude data/processed.
-
-RUN python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; \
-SentenceTransformer('BAAI/bge-small-en-v1.5'); \
-CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
-
-
 COPY . .
 
 # Run as non-root — no reason this process needs root inside the container.
-RUN useradd --create-home appuser
+# chown BEFORE switching user: COPY above runs as root, so without this
+# appuser can't write to data/processed/ (this is what was causing the
+# "Failed to write local trace log: Permission denied" errors) or read the
+# HF cache baked in above.
+RUN useradd --create-home appuser && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000
