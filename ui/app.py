@@ -1,6 +1,6 @@
 """
-Streamlit UI for the agent — two tabs: Ask (the actual demo) and About the Dataset
-(what the corpus is, where it came from).
+Streamlit UI for the agent — two tabs: Ask (the actual demo) and About the
+Knowledge Base (what the corpus is, how NOVA works, where it came from).
 
 Calls the FastAPI /ask endpoint over HTTP rather than importing utils.agent4
 directly — keeps the UI as a genuine separate service.
@@ -12,16 +12,20 @@ Set API_BASE_URL and API_KEY as env vars (or edit the defaults below) to point
 at your running FastAPI instance.
 
 Design notes: palette is white / ash-gray / near-black / a single "shiny" blue
-accent, per brief. The name "Prism" and the blue-light motif are a deliberate
-match to what the system actually does — a question gets split into retrieval
-paths (dense/sparse, sub-questions) and recomposed into one answer, same as a
-prism splitting and recombining light. Swap PROJECT_TITLE below if you'd rather
-use a different name — nothing else depends on it.
+accent, per brief. NOVA (the name) renders in a shining near-black gradient at
+the very top with minimal lead-in space; the expanded name renders in a
+shining blue gradient directly beneath it. Both use a slow animated sheen
+(background-position keyframe) rather than a static gradient, since "shining"
+was requested literally, not just as a color choice.
 
 Confidence/retries are NOT shown — since self_critic.py was removed from the
 pipeline, FinalAnswer.confidence is hardcoded to 1.0 and .retries is always 0,
 so displaying them would be showing fake data. The strategy actually used
-(vector-only vs hybrid) is real per-answer data and is shown instead.
+(vector-only vs hybrid) is real per-answer data and is shown instead. Likewise,
+"what the user receives" in the About tab lists only fields the API actually
+returns today (answer, strategy, source chunk IDs, source count) — the KG is
+described as part of how the pipeline works, not as a field the API returns,
+since used_graph_facts isn't currently exposed on FinalAnswer.
 """
 import os
 
@@ -34,11 +38,15 @@ load_dotenv()
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 API_KEY = os.getenv("API_KEY", "")
 
-PROJECT_TITLE = "Prism"
-PROJECT_TAGLINE = (
-    "A research agent that splits every question across hybrid retrieval "
-    "(dense + sparse) and a knowledge graph, then recomposes the pieces into "
-    "one grounded answer."
+PROJECT_TITLE = "NOVA"
+PROJECT_SUBTITLE = "Node Orchestrated Vector and Knowledge Assistant"
+PROJECT_DESCRIPTION = (
+    "NOVA is an agentic AI application that combines hybrid retrieval, "
+    "Retrieval-Augmented Generation, and a Neo4j knowledge graph to answer "
+    "single-hop and multi-hop questions over a curated research-paper corpus. "
+    "It retrieves relevant content using semantic vector search and BM25 "
+    "keyword search, connects related concepts through the knowledge graph, "
+    "and generates grounded answers with supporting sources."
 )
 
 CORPUS_REPO_URL = "https://github.com/masamasa59/ai-agent-papers"
@@ -59,53 +67,71 @@ st.markdown(
             --c-ash: #E4E4E8;
             --c-ash-dark: #6B6B72;
             --c-black: #0B0B0D;
+            --c-black-light: #4B4B52;
             --c-blue: #2563EB;
             --c-blue-light: #5B9BFF;
             --c-blue-glow: rgba(37, 99, 235, 0.35);
         }
 
         .stApp { background-color: var(--c-bg); }
-
         html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
-        .prism-hero-title {
+        /* Enough top padding that Streamlit's own toolbar doesn't crowd NOVA,
+           and enough line-height that the gradient-clipped text isn't clipped
+           at the top of its own line box. */
+        div.block-container { padding-top: 2.6rem !important; }
+
+        @keyframes shine-sweep {
+            0%   { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+
+        .nova-title {
             font-family: 'Space Grotesk', sans-serif;
             font-weight: 700;
-            font-size: 2.6rem;
+            font-size: 3.2rem;
             letter-spacing: -0.02em;
-            color: var(--c-black);
-            margin-bottom: 0.2rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .prism-hero-title .glint {
-            background: linear-gradient(120deg, var(--c-blue) 0%, var(--c-blue-light) 45%, var(--c-blue) 100%);
+            line-height: 1.25;
+            padding-top: 0.15rem;
+            margin: 0 0 0.15rem 0;
+            background: linear-gradient(110deg, var(--c-black) 20%, var(--c-black-light) 50%, var(--c-black) 80%);
+            background-size: 200% auto;
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-        }
-        .prism-hero-tagline {
-            font-family: 'Inter', sans-serif;
-            color: var(--c-ash-dark);
-            font-size: 1.02rem;
-            max-width: 680px;
-            line-height: 1.5;
-            margin-bottom: 1.1rem;
+            animation: shine-sweep 4s linear infinite;
         }
 
-        .pill-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.6rem; }
+        .nova-subtitle {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 1.15rem;
+            letter-spacing: -0.005em;
+            margin: 0 0 0.6rem 0;
+            background: linear-gradient(110deg, var(--c-blue) 20%, var(--c-blue-light) 50%, var(--c-blue) 80%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: shine-sweep 4s linear infinite;
+        }
+
+        .nova-description {
+            font-family: 'Inter', sans-serif;
+            color: var(--c-ash-dark);
+            font-size: 0.98rem;
+            max-width: 780px;
+            line-height: 1.55;
+            margin-bottom: 1.3rem;
+        }
+
+        .pill-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
         .pill {
             font-family: 'Inter', sans-serif;
             font-size: 0.78rem;
             font-weight: 500;
             padding: 0.32rem 0.85rem;
             border-radius: 999px;
-            background: var(--c-white);
-            color: var(--c-ash-dark);
-            border: 1px solid var(--c-ash);
-        }
-        .pill.blue {
             background: linear-gradient(135deg, var(--c-blue), var(--c-blue-light));
             color: var(--c-white);
             border: none;
@@ -119,6 +145,7 @@ st.markdown(
             padding: 1.4rem 1.6rem;
             box-shadow: 0 1px 3px rgba(11, 11, 13, 0.04);
             margin-top: 0.6rem;
+            margin-bottom: 0.9rem;
         }
         .answer-card h4 {
             font-family: 'Space Grotesk', sans-serif;
@@ -130,10 +157,12 @@ st.markdown(
         }
         .answer-text {
             font-family: 'Inter', sans-serif;
-            font-size: 1.02rem;
+            font-size: 1.0rem;
             color: var(--c-black);
             line-height: 1.6;
         }
+        .answer-text ul { margin: 0.3rem 0 0.3rem 1.1rem; padding: 0; }
+        .answer-text li { margin-bottom: 0.25rem; }
 
         .strategy-badge {
             display: inline-block;
@@ -175,30 +204,31 @@ st.markdown(
 )
 
 # ---------------------------------------------------------------------------
-# Hero
+# Hero — NOVA (shining black) / expanded name (shining blue) / tagline / description
 # ---------------------------------------------------------------------------
 st.markdown(
     f"""
-    <div class="prism-hero-title">{PROJECT_TITLE}<span class="glint"> · Agentic RAG</span></div>
-    <div class="prism-hero-tagline">{PROJECT_TAGLINE}</div>
+    <div class="nova-title">{PROJECT_TITLE}</div>
+    <div class="nova-subtitle">{PROJECT_SUBTITLE}</div>
+    <div class="nova-description">{PROJECT_DESCRIPTION}</div>
     <div class="pill-row">
-        <div class="pill blue">Hybrid Retrieval</div>
-        <div class="pill blue">Knowledge Graph</div>
-        <div class="pill blue">RAG</div>
+        <div class="pill">Hybrid Retrieval</div>
+        <div class="pill">Knowledge Graph</div>
+        <div class="pill">Agent AI</div>
         <div class="pill">Single-hop &amp; Multi-hop</div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-tab_ask, tab_about = st.tabs(["Ask", "About the Dataset"])
+tab_ask, tab_about = st.tabs(["Ask", "About the Knowledge Base"])
 
 # ---------------------------------------------------------------------------
 # Tab 1 — Ask
 # ---------------------------------------------------------------------------
 with tab_ask:
     question = st.text_input(
-        "Ask a question about the paper corpus:",
+        "Ask a question from the corpus:",
         placeholder="e.g. What is SkillOpt? · or · Compare Gorilla and MRKL Systems.",
     )
     ask_clicked = st.button("Ask", type="primary")
@@ -249,7 +279,7 @@ with tab_ask:
         st.warning("Type a question first.")
 
 # ---------------------------------------------------------------------------
-# Tab 2 — About the Dataset
+# Tab 2 — About the Knowledge Base
 # ---------------------------------------------------------------------------
 with tab_about:
     st.markdown(
@@ -257,27 +287,32 @@ with tab_about:
         <div class="answer-card">
             <h4>Corpus</h4>
             <div class="answer-text">
-                This agent answers questions over 30 full-text research papers on AI
-                agent capabilities, sourced from
+                NOVA is built over a curated corpus of <strong>30 full-text research
+                papers on AI agent capabilities</strong>, sourced from the
                 <a href="{CORPUS_REPO_URL}" target="_blank">masamasa59/ai-agent-papers</a>
-                on GitHub — full PDFs (23–60 pages each), not just abstracts, so
-                retrieval works at the section level and can reason across papers,
-                not just within one.
+                collection on GitHub. Unlike systems that index only titles or
+                abstracts, NOVA processes the complete PDF documents, with papers
+                ranging from approximately 23 to 60 pages — so it can retrieve from
+                specific sections (introduction, related work, methods, experiments,
+                datasets, results, conclusions) rather than only the abstract.
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.write("")
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(
             """
             <div class="answer-card">
-                <h4>Tool-use</h4>
-                <div class="answer-text">19 papers on how agents discover, call, and
-                chain external tools.</div>
+                <h4>Tool-use — 19 papers</h4>
+                <div class="answer-text">
+                    How agents discover available tools, select the right one for a
+                    task, generate API calls, chain multiple tools together, and
+                    learn tool-use strategies. Covers systems such as MRKL, Gorilla,
+                    tool-augmented language models, and API-based agents.
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -286,27 +321,157 @@ with tab_about:
         st.markdown(
             """
             <div class="answer-card">
-                <h4>Knowledge</h4>
-                <div class="answer-text">11 papers on how agents access and reason
-                over external or internal knowledge.</div>
+                <h4>Knowledge — 11 papers</h4>
+                <div class="answer-text">
+                    How agents access, organize, and reason over knowledge —
+                    external retrieval, internal memory, knowledge graphs,
+                    long-term agent memory, and structured multi-step reasoning
+                    across sources.
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    st.write("")
     st.markdown(
         """
         <div class="answer-card">
-            <h4>How to use this</h4>
+            <h4>How NOVA works</h4>
             <div class="answer-text">
-                Ask a direct lookup question (<em>single-hop</em>) — e.g. "What is
-                MRKL Systems?" — and the agent searches the paper corpus directly.
-                Ask a question that connects two or more things (<em>multi-hop</em>)
-                — e.g. "Compare Gorilla and MRKL Systems" — and the agent breaks it
-                into sub-questions, retrieves for each separately, and composes one
-                combined answer. Every answer also checks a knowledge graph of
-                papers and concepts alongside retrieval.
+                NOVA combines semantic vector retrieval, BM25 keyword retrieval,
+                Retrieval-Augmented Generation, a Neo4j knowledge graph, and
+                LangGraph-based agent orchestration. When a question comes in,
+                NOVA first decides whether it's a simple lookup or whether it
+                needs information pulled from multiple sources. Direct questions
+                retrieve the most relevant paper sections and answer from those
+                directly. More complex questions get divided into smaller
+                sub-questions, each retrieved separately, then combined into one
+                final answer — with a knowledge graph of papers, concepts,
+                methods, datasets, and tasks checked alongside retrieval to catch
+                connections keyword matching alone would miss.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    col3, col4 = st.columns(2)
+    with col3:
+        st.markdown(
+            """
+            <div class="answer-card">
+                <h4>Semantic vector search</h4>
+                <div class="answer-text">
+                    Retrieves passages by meaning. A question like
+                    <em>"How do agents interact with external services?"</em>
+                    still matches sections using different wording — "tool
+                    invocation," "API execution," "external tool calling" —
+                    because their meanings are close, even if the exact words differ.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with col4:
+        st.markdown(
+            """
+            <div class="answer-card">
+                <h4>BM25 keyword search</h4>
+                <div class="answer-text">
+                    Retrieves passages by exact words and term importance —
+                    especially useful for model names, system names, acronyms,
+                    dataset names, and technical terms. A question naming
+                    "MRKL," "Gorilla," or a specific benchmark benefits from
+                    exact keyword matching that semantic search alone can blur.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        """
+        <div class="answer-card">
+            <h4>Knowledge graph support</h4>
+            <div class="answer-text">
+                The knowledge graph stores papers, methods, concepts, datasets,
+                and tasks as connected nodes and relationships, for example:
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.code(
+        "Paper  → PROPOSES         → Method\n"
+        "Paper  → MENTIONS_CONCEPT → Concept\n"
+        "Paper  → EVALUATED_ON     → Dataset\n"
+        "Paper  → SOLVES_TASK      → Task\n"
+        "Method → SUPPORTS         → Concept",
+        language="text",
+    )
+    st.markdown(
+        """
+        <div class="answer-text" style="margin-bottom: 1.2rem;">
+            Instead of only finding chunks that contain the phrase "Agent Skills,"
+            the knowledge graph can also surface papers related to that concept
+            and the methods associated with it — especially useful for questions
+            that require relationships or comparisons across papers.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div class="answer-card">
+            <h4>Ask a direct question (single-hop)</h4>
+            <div class="answer-text">
+                A direct question usually asks for one specific piece of
+                information. NOVA searches the corpus, retrieves the most
+                relevant sections, reranks them, and generates a grounded answer.
+                <ul>
+                    <li>"What is MRKL Systems?"</li>
+                    <li>"What is SkillOpt?"</li>
+                    <li>"Which paper proposed Gorilla?"</li>
+                </ul>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div class="answer-card">
+            <h4>Ask a comparison or connection question (multi-hop)</h4>
+            <div class="answer-text">
+                A multi-hop question needs information from more than one paper,
+                concept, or method:
+                <ul>
+                    <li>"Compare Gorilla and MRKL Systems."</li>
+                    <li>"How are agent skills connected to tool use?"</li>
+                    <li>"What is the relationship between self-evolution and reinforcement learning?"</li>
+                </ul>
+                For these, NOVA identifies the question as multi-hop, divides it
+                into sub-questions, retrieves evidence for each one separately,
+                checks the knowledge graph for related facts, answers each
+                sub-question, and combines the results into one final response —
+                reasoning across multiple papers rather than a single passage.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div class="answer-card">
+            <h4>What you receive</h4>
+            <div class="answer-text">
+                For each question, NOVA returns a generated answer, the retrieval
+                strategy used (vector-only or hybrid), and the supporting source
+                chunk IDs with a count — so every answer stays traceable back to
+                the corpus it came from, rather than being a black box.
             </div>
         </div>
         """,
