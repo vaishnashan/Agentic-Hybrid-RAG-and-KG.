@@ -19,12 +19,7 @@ python -m utils.knowledge_graph3.test_queries
 
 python -m utils.agent4.graph_definition
 
-python -m utils.observability5.tracing
-streamlit run utils/observability5/dashboard_metrics.py
 
-python -m utils.evaluation6.run_golden_set
-python -m utils.evaluation6.run_ragas        # generates a RAGAS report
-python -m utils.evaluation6.regression_check   # checks it against the threshold
 
 
 
