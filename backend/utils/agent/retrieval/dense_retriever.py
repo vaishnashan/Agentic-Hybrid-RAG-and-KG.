@@ -1,20 +1,20 @@
 # src/retrieval/dense_retriever.py
 """
-DENSE (embedding/meaning-based) retrieval using the local, persisted Chroma index
-built by embed_and_index.py.
+DENSE (embedding/meaning-based) retrieval using the Chroma Cloud index built by
+embed_and_index.py.
 
 The query is embedded with the SAME model used to embed the chunks (bge-small-en-v1.5)
 — this is important: if the query and the chunks aren't embedded with the same model,
 their vectors aren't comparable and search quality collapses.
 
-This file only SEARCHES the already-built Chroma index (data/processed/chroma_db/)
-— it doesn't build anything. That happens in embed_and_index.py.
+This file only SEARCHES the already-built Chroma Cloud index — it doesn't build
+anything. That happens in embed_and_index.py.
 """
 from typing import List
 
 from sentence_transformers import SentenceTransformer
 
-from ..storage.ingestion1.embed_and_index import (
+from ..ingestion1.embed_and_index import (
     CHROMA_COLLECTION_NAME,
     EMBEDDING_MODEL_NAME,
     get_chroma_client,

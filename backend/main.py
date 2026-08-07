@@ -4,9 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
-from codebase.backend.utils.api.rate_limit import limiter
-from codebase.backend.utils.api.routes import health
-from codebase.backend.utils.api.routes import ask
+from codebase.backend.utils.agent.api.rate_limit import limiter
+from codebase.backend.utils.agent.api.routes import health
+from codebase.backend.utils.agent.api.routes import ask
 
 app = FastAPI(
     title="Agentic RAG + Knowledge Graph API",

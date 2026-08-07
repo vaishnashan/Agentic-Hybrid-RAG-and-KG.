@@ -43,8 +43,8 @@ logging.getLogger("pdfminer").setLevel(logging.ERROR)
 # <project_root>/src/ingestion/loader.py
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-METADATA_PATH = PROJECT_ROOT / "data" / "raw" / "paper_metadata.jsonl"
-PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
+METADATA_PATH = Path(r"E:\4.Project 1\codebase\backend\data\raw\paper_metadata.jsonl")
+PROCESSED_DIR = Path(r"E:\4.Project 1\codebase\backend\data\processed")
 OUTPUT_PATH = PROCESSED_DIR / "papers.jsonl"
 
 PAGE_NUMBER_RE = re.compile(r"^\s*\d{1,4}\s*$")

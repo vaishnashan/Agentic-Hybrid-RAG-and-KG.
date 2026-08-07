@@ -1,8 +1,8 @@
 """
 Builds BOTH search indexes from data/processed/chunks.jsonl (produced by chunker.py):
 
-  1. A DENSE (embedding-based) index in a LOCAL, PERSISTED ChromaDB — captures
-     meaning, so a question can match a chunk even if it doesn't share exact words.
+  1. A DENSE (embedding-based) index in CHROMA CLOUD — captures meaning, so a
+     question can match a chunk even if it doesn't share exact words.
   2. A SPARSE (keyword-based) index using BM25 — captures exact terms, acronyms, and
      model/dataset names that embeddings sometimes blur together.
 
@@ -11,22 +11,24 @@ reranks. This script only BUILDS the indexes — it doesn't do any searching its
 
 Expected input:  data/processed/chunks.jsonl        (from chunker.py)
 Outputs:
-  - data/processed/chroma_db/                        (Chroma's persisted vector store, on disk)
-  - data/processed/bm25_index.pkl                     (BM25 index + chunk lookup)
+  - Chroma Cloud collection (paper_chunks)            (Chroma's managed vector store)
+  - data/processed/bm25_index.pkl                      (BM25 index + chunk lookup, local — no cloud
+                                                          equivalent needed, it's just a small pickle file)
 
-WHY LOCAL CHROMA INSTEAD OF CHROMA CLOUD: Chroma Cloud is free to start ($5 in
-credits, no minimum) but is metered usage-based after that (per-GiB written/
-stored/queried). PersistentClient runs the exact same Chroma engine locally,
-writes to a folder on disk, and costs nothing at any scale — no account, no API
-key, no usage cap. For a project this size (a few thousand chunks) local mode is
-simpler and genuinely free forever. If you later need multi-machine access or
-managed hosting, swapping back to CloudClient is a two-line change (see the
-commented-out block below).
+CHROMA CLOUD SETUP (one-time):
+  1. Sign up / log in at https://trychroma.com (or the Chroma Cloud console) —
+     new accounts get $5 in free credits, no minimum, no card required to start.
+  2. Create a database and copy its API key, tenant ID, and database name.
+  3. Add them to your .env:
+       CHROMA_API_KEY=...
+       CHROMA_TENANT=...
+       CHROMA_DATABASE=...
 
-No OCR, no LLM calls here — just an embedding model (sentence-transformers) and a
-classic keyword-ranking algorithm (BM25). Both run locally, no API key required.
+No OCR, no LLM calls here — embedding runs locally via sentence-transformers
+(free, no API key), only the vector STORAGE is in the cloud.
 """
 import json
+import os
 import pickle
 import time
 from dataclasses import dataclass
@@ -50,17 +52,10 @@ EMBEDDING_MODEL_NAME = "BAAI/bge-small-en-v1.5"  # small, fast, strong quality f
 
 CHROMA_COLLECTION_NAME = "paper_chunks"
 
-# Local, on-disk persisted Chroma store — no account, no API key, no cost.
-CHROMA_PERSIST_DIR = PROCESSED_DIR / "chroma_db"
-
-# --- If you ever want to switch back to Chroma Cloud, replace the client
-# creation in build_dense_index()/dense_retriever.py with:
-#
-#   CHROMA_API_KEY = os.environ["CHROMA_API_KEY"]
-#   CHROMA_TENANT = os.environ["CHROMA_TENANT"]
-#   CHROMA_DATABASE = os.environ["CHROMA_DATABASE"]
-#   client = chromadb.CloudClient(api_key=CHROMA_API_KEY, tenant=CHROMA_TENANT, database=CHROMA_DATABASE)
-# ---
+# Chroma Cloud connection details — set these in your .env.
+CHROMA_API_KEY = os.environ["CHROMA_API_KEY"]
+CHROMA_TENANT = os.environ["CHROMA_TENANT"]
+CHROMA_DATABASE = os.environ["CHROMA_DATABASE"]
 
 
 @dataclass
@@ -92,15 +87,18 @@ def load_chunks(path: Path = CHUNKS_PATH) -> List[IndexedChunk]:
 
 
 def get_chroma_client() -> "chromadb.ClientAPI":
-    """Local, persisted Chroma client — data lives at CHROMA_PERSIST_DIR on disk."""
-    CHROMA_PERSIST_DIR.mkdir(parents=True, exist_ok=True)
-    return chromadb.PersistentClient(path=str(CHROMA_PERSIST_DIR))
+    """Chroma Cloud client — data lives in your Chroma Cloud database, not locally."""
+    return chromadb.CloudClient(
+        api_key=CHROMA_API_KEY,
+        tenant=CHROMA_TENANT,
+        database=CHROMA_DATABASE,
+    )
 
 
 def build_dense_index(chunks: List[IndexedChunk]) -> None:
-    """Embeds every chunk and stores the vectors in a persisted local Chroma collection."""
+    """Embeds every chunk locally and uploads the vectors to a Chroma Cloud collection."""
     print("=" * 70)
-    print("BUILDING DENSE (CHROMA, LOCAL) INDEX")
+    print("BUILDING DENSE (CHROMA CLOUD) INDEX")
     print("=" * 70)
 
     start = time.perf_counter()
@@ -108,7 +106,7 @@ def build_dense_index(chunks: List[IndexedChunk]) -> None:
     print(f"Loading embedding model: {EMBEDDING_MODEL_NAME} ...", flush=True)
     model = SentenceTransformer(EMBEDDING_MODEL_NAME)
 
-    print(f"Embedding {len(chunks)} chunks (this may take a couple of minutes)...", flush=True)
+    print(f"Embedding {len(chunks)} chunks locally (this may take a couple of minutes)...", flush=True)
     texts = [c.text for c in chunks]
     embeddings = model.encode(
         texts,
@@ -117,7 +115,7 @@ def build_dense_index(chunks: List[IndexedChunk]) -> None:
         batch_size=64,
     ).tolist()
 
-    print(f"\nWriting vectors to local Chroma store at {CHROMA_PERSIST_DIR} ...", flush=True)
+    print("\nWriting vectors to Chroma Cloud...", flush=True)
     client = get_chroma_client()
     collection = client.get_or_create_collection(name=CHROMA_COLLECTION_NAME)
 
@@ -129,7 +127,8 @@ def build_dense_index(chunks: List[IndexedChunk]) -> None:
             flat[k] = v if isinstance(v, (str, int, float, bool)) else str(v)
         flat_metadatas.append(flat)
 
-    # Chroma has a per-call upsert limit on some versions; batch to be safe.
+    # Chroma has a per-call upsert limit on some versions; batch to be safe
+    # (this also keeps each upload well under Chroma Cloud's per-write pricing chunks).
     BATCH = 250
     for i in range(0, len(chunks), BATCH):
         collection.upsert(
@@ -140,13 +139,14 @@ def build_dense_index(chunks: List[IndexedChunk]) -> None:
         )
 
     elapsed = time.perf_counter() - start
-    print(f"Dense index built: {collection.count()} vectors stored locally "
-          f"at {CHROMA_PERSIST_DIR}")
+    print(f"Dense index built: {collection.count()} vectors stored in Chroma Cloud "
+          f"(tenant={CHROMA_TENANT}, database={CHROMA_DATABASE})")
     print(f"Time taken: {elapsed:.1f} seconds")
 
 
 def build_sparse_index(chunks: List[IndexedChunk]) -> None:
-    """Builds a BM25 keyword index over the same chunks and saves it to disk."""
+    """Builds a BM25 keyword index over the same chunks and saves it to disk.
+    Stays local — BM25 indexes are tiny (a pickle file), no cloud storage needed."""
     print("\n" + "=" * 70)
     print("BUILDING SPARSE (BM25) INDEX")
     print("=" * 70)
@@ -193,8 +193,8 @@ def main() -> None:
         print("\n" + "=" * 70)
         print("INDEXING COMPLETE")
         print("=" * 70)
-        print(f"Dense index (Chroma, local) : {CHROMA_PERSIST_DIR}")
-        print(f"Sparse index (BM25)         : {BM25_INDEX_PATH}")
+        print(f"Dense index (Chroma Cloud) : database '{CHROMA_DATABASE}'")
+        print(f"Sparse index (BM25)        : {BM25_INDEX_PATH}")
 
     except Exception as error:
         print("\nINDEXING STOPPED DUE TO A FATAL ERROR")

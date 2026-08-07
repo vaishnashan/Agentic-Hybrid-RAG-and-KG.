@@ -14,7 +14,7 @@ import pickle
 from dataclasses import dataclass
 from typing import List
 
-from ..storage.ingestion1.embed_and_index import BM25_INDEX_PATH
+from ..ingestion1.embed_and_index import BM25_INDEX_PATH
 
 
 @dataclass
