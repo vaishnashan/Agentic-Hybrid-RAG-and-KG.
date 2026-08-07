@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2602.01276",
+  "version": 1,
+  "filename": "2602.01276v1.pdf",
+  "title": "LLM-Driven Ontology Construction for Enterprise Knowledge Graphs",
+  "category": "knowledge",
+  "arxiv_primary_category": "cs.AI",
+  "published_month": "Feb 2026",
+  "published_date_exact": null,
+  "num_pages": 4,
+  "arxiv_url": "https://arxiv.org/abs/2602.01276",
+  "pdf_url": "https://arxiv.org/pdf/2602.01276",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/knowledge.md",
+  "local_path": "data/raw/papers/knowledge/2602.01276v1.pdf"
+}

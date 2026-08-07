@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2606.13669",
+  "version": 3,
+  "filename": "2606.13669v3.pdf",
+  "title": "Agents-K1: Towards Agent-native Knowledge Orchestration",
+  "category": "knowledge",
+  "arxiv_primary_category": "cs.AI",
+  "published_month": "Jun 2026",
+  "published_date_exact": null,
+  "num_pages": 63,
+  "arxiv_url": "https://arxiv.org/abs/2606.13669",
+  "pdf_url": "https://arxiv.org/pdf/2606.13669",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/knowledge.md",
+  "local_path": "data/raw/papers/knowledge/2606.13669v3.pdf"
+}

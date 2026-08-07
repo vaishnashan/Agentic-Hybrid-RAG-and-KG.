@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2603.14147",
+  "version": 2,
+  "filename": "2603.14147v2.pdf",
+  "title": "An Alternative Trajectory for Generative AI",
+  "category": "knowledge",
+  "arxiv_primary_category": "cs.AI",
+  "published_month": "Mar 2026",
+  "published_date_exact": null,
+  "num_pages": 46,
+  "arxiv_url": "https://arxiv.org/abs/2603.14147",
+  "pdf_url": "https://arxiv.org/pdf/2603.14147",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/knowledge.md",
+  "local_path": "data/raw/papers/knowledge/2603.14147v2.pdf"
+}

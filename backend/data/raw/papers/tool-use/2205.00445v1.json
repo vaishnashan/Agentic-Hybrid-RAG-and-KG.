@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2205.00445",
+  "version": 1,
+  "filename": "2205.00445v1.pdf",
+  "title": "MRKL Systems: A modular, neuro-symbolic architecture that combines large language models, external knowledge sources and discrete reasoning",
+  "category": "tool-use",
+  "arxiv_primary_category": "cs.CL",
+  "published_month": "May 2022",
+  "published_date_exact": "2022-05-01",
+  "num_pages": 19,
+  "arxiv_url": "https://arxiv.org/abs/2205.00445",
+  "pdf_url": "https://arxiv.org/pdf/2205.00445",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/tool-use.md",
+  "local_path": "data/raw/papers/tool-use/2205.00445v1.pdf"
+}

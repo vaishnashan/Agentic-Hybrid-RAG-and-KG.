@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2606.06741",
+  "version": 1,
+  "filename": "2606.06741v1.pdf",
+  "title": "OpenSkill: Open-World Self-Evolution for LLM Agents",
+  "category": "tool-use",
+  "arxiv_primary_category": "cs.AI",
+  "published_month": "Jun 2026",
+  "published_date_exact": null,
+  "num_pages": 20,
+  "arxiv_url": "https://arxiv.org/abs/2606.06741",
+  "pdf_url": "https://arxiv.org/pdf/2606.06741",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/tool-use.md",
+  "local_path": "data/raw/papers/tool-use/2606.06741v1.pdf"
+}

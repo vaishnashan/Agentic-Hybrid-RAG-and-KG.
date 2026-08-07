@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2603.04448",
+  "version": 1,
+  "filename": "2603.04448v1.pdf",
+  "title": "SkillNet: Create, Evaluate, and Connect AI Skills",
+  "category": "tool-use",
+  "arxiv_primary_category": "cs.AI",
+  "published_month": "Mar 2026",
+  "published_date_exact": null,
+  "num_pages": 18,
+  "arxiv_url": "https://arxiv.org/abs/2603.04448",
+  "pdf_url": "https://arxiv.org/pdf/2603.04448",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/tool-use.md",
+  "local_path": "data/raw/papers/tool-use/2603.04448v1.pdf"
+}

@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2605.23904",
+  "version": 2,
+  "filename": "2605.23904v2.pdf",
+  "title": "SkillOpt: Executive Strategy for Self-Evolving Agent Skills",
+  "category": "tool-use",
+  "arxiv_primary_category": "cs.AI",
+  "published_month": "May 2026",
+  "published_date_exact": "2026-05-25",
+  "num_pages": 27,
+  "arxiv_url": "https://arxiv.org/abs/2605.23904",
+  "pdf_url": "https://arxiv.org/pdf/2605.23904",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/tool-use.md",
+  "local_path": "data/raw/papers/tool-use/2605.23904v2.pdf"
+}

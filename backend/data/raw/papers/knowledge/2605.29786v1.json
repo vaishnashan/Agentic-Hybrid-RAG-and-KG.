@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2605.29786",
+  "version": 1,
+  "filename": "2605.29786v1.pdf",
+  "title": "Croissant Tasks: A Metadata Format for Reproducible Machine Learning Evaluations",
+  "category": "knowledge",
+  "arxiv_primary_category": "cs.AI",
+  "published_month": "May 2026",
+  "published_date_exact": "2026-05-28",
+  "num_pages": 33,
+  "arxiv_url": "https://arxiv.org/abs/2605.29786",
+  "pdf_url": "https://arxiv.org/pdf/2605.29786",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/knowledge.md",
+  "local_path": "data/raw/papers/knowledge/2605.29786v1.pdf"
+}

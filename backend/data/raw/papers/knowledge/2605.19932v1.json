@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2605.19932",
+  "version": 1,
+  "filename": "2605.19932v1.pdf",
+  "title": "PEEK: Context Map as an Orientation Cache for Long-Context LLM Agents",
+  "category": "knowledge",
+  "arxiv_primary_category": "cs.AI",
+  "published_month": "May 2026",
+  "published_date_exact": "2026-05-19",
+  "num_pages": 42,
+  "arxiv_url": "https://arxiv.org/abs/2605.19932",
+  "pdf_url": "https://arxiv.org/pdf/2605.19932",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/knowledge.md",
+  "local_path": "data/raw/papers/knowledge/2605.19932v1.pdf"
+}

@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2606.11897",
+  "version": 1,
+  "filename": "2606.11897v1.pdf",
+  "title": "Notes2Skills: From Lab Notebooks to Certainty-Aware Scientific Agent Skills",
+  "category": "tool-use",
+  "arxiv_primary_category": "cs.CL",
+  "published_month": "Jun 2026",
+  "published_date_exact": null,
+  "num_pages": 28,
+  "arxiv_url": "https://arxiv.org/abs/2606.11897",
+  "pdf_url": "https://arxiv.org/pdf/2606.11897",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/tool-use.md",
+  "local_path": "data/raw/papers/tool-use/2606.11897v1.pdf"
+}

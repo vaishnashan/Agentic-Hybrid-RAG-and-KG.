@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2602.00699",
+  "version": 1,
+  "filename": "2602.00699v1.pdf",
+  "title": "From Prompt to Graph: Comparing LLM-Based Information Extraction Strategies in Domain-Specific Ontology Development",
+  "category": "knowledge",
+  "arxiv_primary_category": "cs.AI",
+  "published_month": "Feb 2026",
+  "published_date_exact": null,
+  "num_pages": 11,
+  "arxiv_url": "https://arxiv.org/abs/2602.00699",
+  "pdf_url": "https://arxiv.org/pdf/2602.00699",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/knowledge.md",
+  "local_path": "data/raw/papers/knowledge/2602.00699v1.pdf"
+}

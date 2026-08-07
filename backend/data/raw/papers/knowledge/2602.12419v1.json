@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2602.12419",
+  "version": 1,
+  "filename": "2602.12419v1.pdf",
+  "title": "Intent-Driven Smart Manufacturing Integrating Knowledge Graphs and Large Language Models",
+  "category": "knowledge",
+  "arxiv_primary_category": "cs.AI",
+  "published_month": "Feb 2026",
+  "published_date_exact": null,
+  "num_pages": 8,
+  "arxiv_url": "https://arxiv.org/abs/2602.12419",
+  "pdf_url": "https://arxiv.org/pdf/2602.12419",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/knowledge.md",
+  "local_path": "data/raw/papers/knowledge/2602.12419v1.pdf"
+}

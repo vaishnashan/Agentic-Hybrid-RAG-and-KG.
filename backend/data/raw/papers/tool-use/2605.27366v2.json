@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2605.27366",
+  "version": 2,
+  "filename": "2605.27366v2.pdf",
+  "title": "MUSE-Autoskill: Self-Evolving Agents via Skill Creation, Memory, Management, and Evaluation",
+  "category": "tool-use",
+  "arxiv_primary_category": "cs.AI",
+  "published_month": "May 2026",
+  "published_date_exact": null,
+  "num_pages": 30,
+  "arxiv_url": "https://arxiv.org/abs/2605.27366",
+  "pdf_url": "https://arxiv.org/pdf/2605.27366",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/tool-use.md",
+  "local_path": "data/raw/papers/tool-use/2605.27366v2.pdf"
+}

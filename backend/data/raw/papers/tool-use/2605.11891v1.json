@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2605.11891",
+  "version": 1,
+  "filename": "2605.11891v1.pdf",
+  "title": "Proteus: A Self-Evolving Red Team for Agent Skill Ecosystems",
+  "category": "tool-use",
+  "arxiv_primary_category": "cs.CR",
+  "published_month": "May 2026",
+  "published_date_exact": "2026-05-12",
+  "num_pages": 26,
+  "arxiv_url": "https://arxiv.org/abs/2605.11891",
+  "pdf_url": "https://arxiv.org/pdf/2605.11891",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/tool-use.md",
+  "local_path": "data/raw/papers/tool-use/2605.11891v1.pdf"
+}

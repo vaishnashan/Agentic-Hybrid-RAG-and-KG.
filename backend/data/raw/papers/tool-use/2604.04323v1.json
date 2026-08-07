@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2604.04323",
+  "version": 1,
+  "filename": "2604.04323v1.pdf",
+  "title": "How Well Do Agentic Skills Work in the Wild: Benchmarking LLM Skill Usage in Realistic Settings",
+  "category": "tool-use",
+  "arxiv_primary_category": "cs.CL",
+  "published_month": "Apr 2026",
+  "published_date_exact": null,
+  "num_pages": 19,
+  "arxiv_url": "https://arxiv.org/abs/2604.04323",
+  "pdf_url": "https://arxiv.org/pdf/2604.04323",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/tool-use.md",
+  "local_path": "data/raw/papers/tool-use/2604.04323v1.pdf"
+}

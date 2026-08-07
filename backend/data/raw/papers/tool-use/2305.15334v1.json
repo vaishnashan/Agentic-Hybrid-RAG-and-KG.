@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2305.15334",
+  "version": 1,
+  "filename": "2305.15334v1.pdf",
+  "title": "Gorilla: Large language model connected with massive apis",
+  "category": "tool-use",
+  "arxiv_primary_category": "cs.CL",
+  "published_month": "May 2023",
+  "published_date_exact": "2023-05-24",
+  "num_pages": 18,
+  "arxiv_url": "https://arxiv.org/abs/2305.15334",
+  "pdf_url": "https://arxiv.org/pdf/2305.15334",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/tool-use.md",
+  "local_path": "data/raw/papers/tool-use/2305.15334v1.pdf"
+}

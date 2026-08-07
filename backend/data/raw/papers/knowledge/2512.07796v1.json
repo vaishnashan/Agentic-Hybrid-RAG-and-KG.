@@ -1,0 +1,16 @@
+{
+  "arxiv_id": "2512.07796",
+  "version": 1,
+  "filename": "2512.07796v1.pdf",
+  "title": "LARGE CAUSAL MODELS FROM LARGE LANGUAGE MODELS",
+  "category": "knowledge",
+  "arxiv_primary_category": "cs.AI",
+  "published_month": "Dec 2025",
+  "published_date_exact": null,
+  "num_pages": 29,
+  "arxiv_url": "https://arxiv.org/abs/2512.07796",
+  "pdf_url": "https://arxiv.org/pdf/2512.07796",
+  "source_repo": "https://github.com/masamasa59/ai-agent-papers",
+  "source_bib_file": "capability-papers/knowledge.md",
+  "local_path": "data/raw/papers/knowledge/2512.07796v1.pdf"
+}
