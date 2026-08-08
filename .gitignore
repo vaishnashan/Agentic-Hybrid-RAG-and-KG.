@@ -1,17 +1,25 @@
-*.pyc
-data/raw/*
-data/processed/*
-
-!data/raw/.gitkeep
-!data/processed/
-!data/processed/.gitkeep
-!data/processed/bm25_index.pkl
-
-*.log
-.env/
-.pytest_cache/
-src/evaluation/reports/*.json
-!src/evaluation/reports/.gitkeep
+# Never commit real secrets — only .env.example files are tracked.
+backend/.env
+frontend/.env
 .env
-venv/
+
+# Python
 __pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+venv/
+.venv/
+
+# Local data the pipeline generates — regenerate via
+# python -m utils.storage.pipeline rather than committing large generated
+# artifacts. Keep this commented out if you'd rather version-control the
+# processed outputs; excluded here since bm25_index.pkl/chunks.jsonl are
+# large and environment-specific to regenerate anyway.
+# backend/data/processed/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -2,19 +2,23 @@
 # (Upstash) are all managed cloud services you already connect to over HTTPS —
 # there's nothing to containerize for them. If you ever move to self-hosted
 # versions of any of those, add a service block for it here and point the
-# corresponding env var at the in-network hostname instead (e.g.
-# CHROMA_PERSIST_DIR pointing at a chroma service instead of Chroma Cloud).
-version: "3.9"
+# corresponding env var at the in-network hostname instead.
+#
+# Expected layout (this file sits at the repo root, one level above both):
+#   docker-compose.yml
+#   backend/    (Dockerfile, .env, main.py, utils/, ...)
+#   frontend/   (Dockerfile, .env, ui/, ...)
+
 
 services:
   api:
     build:
-      context: .
-      dockerfile: Dockerfile.api
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     env_file:
-      - .env
+      - ./backend/.env
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -24,14 +28,19 @@ services:
 
   ui:
     build:
-      context: .
-      dockerfile: Dockerfile.ui
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "8501:8501"
     env_file:
-      - .env
+      - ./frontend/.env
     environment:
+      # Overrides whatever API_BASE_URL is in frontend/.env — inside the
+      # compose network, services reach each other by SERVICE NAME (api),
+      # not localhost. localhost inside the ui container would mean the ui
+      # container itself, not the api container.
       - API_BASE_URL=http://api:8000
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped

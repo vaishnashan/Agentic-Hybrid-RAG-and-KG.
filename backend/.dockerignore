@@ -1,0 +1,20 @@
+# Never bake secrets into the image — real values are injected at runtime
+# via env_file (docker-compose) or the platform's env var dashboard (Render).
+.env
+
+# The deployed API only ever reads data/processed/*.jsonl and bm25_index.pkl
+# (see main.py -> agent -> retrieval). The raw PDFs and their per-paper JSON
+# sidecars are only needed by the offline storage pipeline (utils/storage/),
+# not by the running API — excluding them keeps the image small and the
+# build fast (this alone is ~130MB in this project).
+data/raw/papers/
+
+git
+.git
+.gitignore
+__pycache__/
+*.pyc
+.pytest_cache/
+venv/
+.venv/
+*.egg-info/

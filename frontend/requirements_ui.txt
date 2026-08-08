@@ -1,7 +1,0 @@
-# UI-only dependencies — matches exactly what ui/app.py actually imports.
-# Deliberately NOT the full requirements.txt: that file has torch, chromadb,
-# neo4j, langgraph, sentence-transformers, ragas, etc. — none of which the
-# Streamlit UI touches, since it only talks to the API over HTTP.
-streamlit
-requests
-python-dotenv
