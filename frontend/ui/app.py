@@ -164,17 +164,21 @@ st.markdown(
 
     .nova-title {{
         margin: 0;
-        font-size: clamp(3.4rem, 7vw, 6.4rem);
+        font-size: clamp(5rem, 10vw, 9rem);
         font-weight: 800;
         letter-spacing: -0.065em;
         line-height: 0.95;
-        background: linear-gradient(110deg, #FFFFFF 18%, var(--blue-light) 42%, var(--blue) 55%, #FFFFFF 82%);
+        background: linear-gradient(
+            110deg,
+            #FFFFFF 18%,
+            var(--blue-light) 42%,
+            var(--blue) 55%,
+            #FFFFFF 82%
+        );
         background-size: 220% auto;
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
-        animation: nova-shine 5s linear infinite;
-        filter: drop-shadow(0 0 18px rgba(120,168,255,0.16));
     }}
 
     .nova-subtitle {{
