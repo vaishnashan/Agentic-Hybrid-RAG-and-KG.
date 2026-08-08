@@ -39,7 +39,7 @@ Then open `http://localhost:8501`.
 
 ## Render
 
-Create a Web Service from this frontend folder and set:
+
 
 - `API_BASE_URL` — deployed NOVA backend URL
 - `API_KEY` — same API key configured in the backend
