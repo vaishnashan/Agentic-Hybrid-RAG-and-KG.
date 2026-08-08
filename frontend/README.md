@@ -1,63 +1,54 @@
-# NOVA — Frontend (Streamlit UI)
+# NOVA — Streamlit Frontend
 
-Talks to the backend's `/ask` endpoint over plain HTTP — no direct imports
-from the backend, no shared Python environment. Deploy it as a completely
-separate service from the backend.
+Professional Streamlit UI for the NOVA agentic RAG + knowledge-graph backend.
+The frontend is a separate service and communicates with FastAPI through `/ask`.
 
-```
+## Project structure
+
+```text
 frontend/
 ├── Dockerfile
-├── requirements-ui.txt      # streamlit, requests, python-dotenv — nothing else
+├── requirements-ui.txt
 ├── .env.example
 ├── .streamlit/
-│   └── config.toml          # theme — MUST stay at this path, see note below
+│   └── config.toml
 └── ui/
     ├── __init__.py
-    └── app.py                # the entire UI
+    └── app.py
 ```
 
-### Why `.streamlit/config.toml` lives at the repo root, not inside `ui/`
-Streamlit resolves `.streamlit/config.toml` relative to the **working
-directory `streamlit run` is invoked from** — not the entrypoint script's own
-folder. Since the Dockerfile runs `streamlit run ui/app.py` from `WORKDIR
-/app`, the config must be at `/app/.streamlit/config.toml`, i.e. this repo's
-root `.streamlit/`, or the theme silently never applies. Keep this file here
-if you move things around later.
-
-## Running locally
+## Local run
 
 ```bash
 pip install -r requirements-ui.txt
-cp .env.example .env   # fill in API_BASE_URL / API_KEY
+cp .env.example .env
+# Set API_BASE_URL and API_KEY in .env
 streamlit run ui/app.py
 ```
 
-## Deploying on Render
+On Windows PowerShell, you can create `.env` manually instead of using `cp`.
 
-1. Push this `frontend/` folder to its own repo (or a subfolder of a repo —
-   Render lets you point a service at a subdirectory).
-2. Render → New → Web Service → connect the repo, it auto-detects the
-   `Dockerfile`.
-3. Set environment variables in Render's dashboard:
-   - `API_BASE_URL` = your deployed backend's Render URL (e.g.
-     `https://your-backend-name.onrender.com`)
-   - `API_KEY` = must match the backend's `API_KEY` exactly
-4. Deploy.
+## Docker
 
-### Notes on Render's free tier
-- Free web services spin down after 15 minutes idle; the next request takes
-  roughly 30-60 seconds to wake back up. If both frontend and backend are on
-  free instances, a cold start on both can stack — the first question after
-  a period of inactivity may take noticeably longer than usual. This is
-  normal, not a bug.
-- If you ever see the frontend itself time out waiting for the backend on a
-  multi-hop question (several LLM calls chained together), that's a proxy/
-  request timeout setting, not the 180s timeout already set in `app.py`'s
-  `requests.post(..., timeout=180)` — check Render's service-level timeout
-  settings if this happens consistently.
+```bash
+docker build -t nova-frontend .
+docker run --env-file .env -p 8501:8501 nova-frontend
+```
 
-### CORS
-The backend's `main.py` currently allows all origins (`allow_origins=["*"]`).
-That's fine for getting this running, but once both services have stable
-Render URLs, consider tightening the backend's CORS to just this frontend's
-exact URL.
+Then open `http://localhost:8501`.
+
+## Render
+
+Create a Web Service from this frontend folder and set:
+
+- `API_BASE_URL` — deployed NOVA backend URL
+- `API_KEY` — same API key configured in the backend
+
+The Dockerfile uses Render's `PORT` automatically.
+
+## UI stability fix
+
+The UI no longer depends on a local `hero_art.jpg` asset. The visual graph pattern
+is embedded in CSS, and the Streamlit theme is explicitly dark. The CSS also targets
+both `.stApp` and Streamlit's current `data-testid` containers so a Streamlit theme
+or version change cannot silently turn the page white while leaving light text.
