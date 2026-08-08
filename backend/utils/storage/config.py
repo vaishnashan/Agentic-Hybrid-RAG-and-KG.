@@ -61,7 +61,7 @@ CHROMA_DATABASE = os.getenv("CHROMA_DATABASE", "")
 EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "huggingface")
 HF_API_TOKEN = os.getenv("HF_API_TOKEN", "")
 HF_FEATURE_EXTRACTION_URL = (
-    f"https://api-inference.huggingface.co/pipeline/feature-extraction/{EMBEDDING_MODEL_NAME}"
+    f"https://router.huggingface.co/hf-inference/models/{EMBEDDING_MODEL_NAME}/pipeline/feature-extraction"
 )
 
 # ── Sparse index (BM25) ──────────────────────────────────────────────────
