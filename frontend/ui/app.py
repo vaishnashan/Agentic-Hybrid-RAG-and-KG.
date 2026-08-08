@@ -11,12 +11,15 @@ Run locally:
 Set API_BASE_URL and API_KEY as env vars (or edit the defaults below) to point
 at your running FastAPI instance.
 
-Design notes: palette is white / ash-gray / near-black / a single "shiny" blue
-accent, per brief. NOVA (the name) renders in a shining near-black gradient at
-the very top with minimal lead-in space; the expanded name renders in a
-shining blue gradient directly beneath it. Both use a slow animated sheen
-(background-position keyframe) rather than a static gradient, since "shining"
-was requested literally, not just as a color choice.
+Design notes (v2): dark ash/charcoal base with a warm copper-brown accent and
+a white-blue "shine" on the title, per updated brief. NOVA (the name) renders
+in a shining white-to-blue animated gradient at the top; the tagline renders
+in a shining copper gradient directly beneath it. Both use a slow animated
+sheen (background-position keyframe). A low-opacity SVG "node graph" pattern
+(small colored circles connected by thin lines, evoking the Neo4j knowledge
+graph) sits behind the hero and the Ask panel so the input area isn't a blank
+void. The Ask panel itself is wrapped in an ash card with a small icon badge
+and static example chips instead of a bare text box.
 
 Confidence/retries are NOT shown — since self_critic.py was removed from the
 pipeline, FinalAnswer.confidence is hardcoded to 1.0 and .retries is always 0,
@@ -56,37 +59,105 @@ st.set_page_config(page_title=f"{PROJECT_TITLE} — Agentic RAG + Knowledge Grap
 # ---------------------------------------------------------------------------
 # Styling — fonts + palette (white / ash / black / blue), injected once.
 # ---------------------------------------------------------------------------
+NODE_GRAPH_SVG = (
+    "%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22260%22%20height%3D%22260%22%20viewBox%3D%220%200%20260%20260%22%3E%0A"
+    "%3Cg%20fill%3D%22none%22%20stroke-width%3D%221.2%22%3E%0A"
+    "%3Cline%20x1%3D%2230%22%20y1%3D%2240%22%20x2%3D%22110%22%20y2%3D%2290%22%20stroke%3D%22%23B4753E%22%20stroke-opacity%3D%220.35%22/%3E%0A"
+    "%3Cline%20x1%3D%22110%22%20y1%3D%2290%22%20x2%3D%22200%22%20y2%3D%2250%22%20stroke%3D%22%236FA8FF%22%20stroke-opacity%3D%220.30%22/%3E%0A"
+    "%3Cline%20x1%3D%22110%22%20y1%3D%2290%22%20x2%3D%2290%22%20y2%3D%22180%22%20stroke%3D%22%234FBFA8%22%20stroke-opacity%3D%220.28%22/%3E%0A"
+    "%3Cline%20x1%3D%2290%22%20y1%3D%22180%22%20x2%3D%22200%22%20y2%3D%22210%22%20stroke%3D%22%23B4753E%22%20stroke-opacity%3D%220.28%22/%3E%0A"
+    "%3Cline%20x1%3D%22200%22%20y1%3D%2250%22%20x2%3D%22230%22%20y2%3D%22140%22%20stroke%3D%22%236FA8FF%22%20stroke-opacity%3D%220.25%22/%3E%0A"
+    "%3Cline%20x1%3D%2220%22%20y1%3D%22150%22%20x2%3D%2290%22%20y2%3D%22180%22%20stroke%3D%22%234FBFA8%22%20stroke-opacity%3D%220.22%22/%3E%0A"
+    "%3C/g%3E%0A"
+    "%3Ccircle%20cx%3D%2230%22%20cy%3D%2240%22%20r%3D%224%22%20fill%3D%22%23B4753E%22%20fill-opacity%3D%220.55%22/%3E%0A"
+    "%3Ccircle%20cx%3D%22110%22%20cy%3D%2290%22%20r%3D%225.5%22%20fill%3D%22%236FA8FF%22%20fill-opacity%3D%220.55%22/%3E%0A"
+    "%3Ccircle%20cx%3D%22200%22%20cy%3D%2250%22%20r%3D%224%22%20fill%3D%22%234FBFA8%22%20fill-opacity%3D%220.5%22/%3E%0A"
+    "%3Ccircle%20cx%3D%2290%22%20cy%3D%22180%22%20r%3D%224.5%22%20fill%3D%22%23B4753E%22%20fill-opacity%3D%220.5%22/%3E%0A"
+    "%3Ccircle%20cx%3D%22200%22%20cy%3D%22210%22%20r%3D%224%22%20fill%3D%22%236FA8FF%22%20fill-opacity%3D%220.5%22/%3E%0A"
+    "%3Ccircle%20cx%3D%22230%22%20cy%3D%22140%22%20r%3D%223.5%22%20fill%3D%22%234FBFA8%22%20fill-opacity%3D%220.45%22/%3E%0A"
+    "%3Ccircle%20cx%3D%2220%22%20cy%3D%22150%22%20r%3D%223%22%20fill%3D%22%236FA8FF%22%20fill-opacity%3D%220.4%22/%3E%0A"
+    "%3C/svg%3E"
+)
+
 st.markdown(
-    """
+    f"""
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --c-white: #FFFFFF;
-            --c-bg: #FAFAFB;
-            --c-ash: #E4E4E8;
-            --c-ash-dark: #6B6B72;
+        :root {{
+            --c-white: #F5F3F1;
+            --c-bg-1: #17151A;
+            --c-bg-2: #241F1C;
+            --c-ash: #322C29;
+            --c-ash-line: #453E39;
+            --c-ash-dark: #B7AFA7;
+            --c-ash-dim: #8B837B;
             --c-black: #0B0B0D;
-            --c-black-light: #4B4B52;
-            --c-blue: #2563EB;
-            --c-blue-light: #5B9BFF;
-            --c-blue-glow: rgba(37, 99, 235, 0.35);
-        }
+            --c-brown: #B4753E;
+            --c-brown-light: #E3A066;
+            --c-brown-glow: rgba(180, 117, 62, 0.35);
+            --c-blue: #6FA8FF;
+            --c-blue-light: #CFE4FF;
+            --c-blue-glow: rgba(111, 168, 255, 0.35);
+            --c-teal: #4FBFA8;
+        }}
 
-        .stApp { background-color: var(--c-bg); }
-        html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+        .stApp {{
+            background:
+                radial-gradient(1100px 550px at 12% -8%, rgba(111,168,255,0.10), transparent 60%),
+                radial-gradient(900px 500px at 100% 0%, rgba(180,117,62,0.14), transparent 55%),
+                linear-gradient(160deg, var(--c-bg-1) 0%, var(--c-bg-2) 55%, #1B1714 100%);
+        }}
+        html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; color: var(--c-white); }}
 
-        /* Enough top padding that Streamlit's own toolbar doesn't crowd NOVA,
-           and enough line-height that the gradient-clipped text isn't clipped
-           at the top of its own line box. */
-        div.block-container { padding-top: 2.6rem !important; }
+        div.block-container {{ padding-top: 2.6rem !important; }}
 
-        @keyframes shine-sweep {
-            0%   { background-position: 0% 50%; }
-            100% { background-position: 200% 50%; }
-        }
+        @keyframes shine-sweep {{
+            0%   {{ background-position: 0% 50%; }}
+            100% {{ background-position: 200% 50%; }}
+        }}
+        @keyframes drift {{
+            0%   {{ transform: translateY(0px); }}
+            50%  {{ transform: translateY(-6px); }}
+            100% {{ transform: translateY(0px); }}
+        }}
 
-        .nova-title {
+        /* --- decorative knowledge-graph node pattern, behind the hero --- */
+        .node-field {{
+            position: absolute;
+            top: -20px; right: -30px;
+            width: 340px; height: 340px;
+            background-image: url("data:image/svg+xml,{NODE_GRAPH_SVG}");
+            background-repeat: no-repeat;
+            background-size: contain;
+            pointer-events: none;
+            z-index: 0;
+            animation: drift 7s ease-in-out infinite;
+        }}
+        .node-field.field-2 {{
+            top: 140px; right: 420px;
+            width: 220px; height: 220px;
+            opacity: 0.6;
+            animation-delay: 1.5s;
+        }}
+
+        .hero-wrap {{ position: relative; }}
+
+        .badge-icon {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.5rem; height: 1.5rem;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            vertical-align: middle;
+            background: linear-gradient(135deg, var(--c-brown), var(--c-blue));
+            box-shadow: 0 0 10px var(--c-brown-glow);
+        }}
+
+        .nova-title {{
+            position: relative;
+            z-index: 1;
             font-family: 'Space Grotesk', sans-serif;
             font-weight: 700;
             font-size: 3.2rem;
@@ -94,110 +165,192 @@ st.markdown(
             line-height: 1.25;
             padding-top: 0.15rem;
             margin: 0 0 0.15rem 0;
-            background: linear-gradient(110deg, var(--c-black) 20%, var(--c-black-light) 50%, var(--c-black) 80%);
-            background-size: 200% auto;
+            background: linear-gradient(110deg, var(--c-white) 15%, var(--c-blue) 45%, var(--c-blue-light) 60%, var(--c-white) 85%);
+            background-size: 220% auto;
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
             animation: shine-sweep 4s linear infinite;
-        }
+            filter: drop-shadow(0 0 18px rgba(111,168,255,0.25));
+        }}
 
-        .nova-subtitle {
+        .nova-subtitle {{
+            position: relative;
+            z-index: 1;
             font-family: 'Space Grotesk', sans-serif;
             font-weight: 600;
             font-size: 1.15rem;
             letter-spacing: -0.005em;
             margin: 0 0 0.6rem 0;
-            background: linear-gradient(110deg, var(--c-blue) 20%, var(--c-blue-light) 50%, var(--c-blue) 80%);
+            background: linear-gradient(110deg, var(--c-brown) 20%, var(--c-brown-light) 50%, var(--c-brown) 80%);
             background-size: 200% auto;
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
             animation: shine-sweep 4s linear infinite;
-        }
+        }}
 
-        .nova-description {
+        .nova-description {{
+            position: relative;
+            z-index: 1;
             font-family: 'Inter', sans-serif;
             color: var(--c-ash-dark);
             font-size: 0.98rem;
             max-width: 780px;
             line-height: 1.55;
             margin-bottom: 1.3rem;
-        }
+        }}
 
-        .pill-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
-        .pill {
+        .pill-row {{ position: relative; z-index: 1; display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.4rem; }}
+        .pill {{
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
             font-family: 'Inter', sans-serif;
             font-size: 0.78rem;
             font-weight: 500;
-            padding: 0.32rem 0.85rem;
+            padding: 0.32rem 0.85rem 0.32rem 0.6rem;
             border-radius: 999px;
-            background: linear-gradient(135deg, var(--c-blue), var(--c-blue-light));
-            color: var(--c-white);
+            background: linear-gradient(135deg, var(--c-brown), var(--c-brown-light));
+            color: #241708;
             border: none;
-            box-shadow: 0 2px 10px var(--c-blue-glow);
-        }
-
-        .answer-card {
+            box-shadow: 0 2px 10px var(--c-brown-glow);
+        }}
+        .pill .dot {{
+            width: 7px; height: 7px; border-radius: 50%;
             background: var(--c-white);
-            border: 1px solid var(--c-ash);
+            box-shadow: 0 0 6px rgba(255,255,255,0.8);
+        }}
+
+        .answer-card {{
+            position: relative;
+            background: linear-gradient(155deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015));
+            border: 1px solid var(--c-ash-line);
             border-radius: 14px;
             padding: 1.4rem 1.6rem;
-            box-shadow: 0 1px 3px rgba(11, 11, 13, 0.04);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.28);
             margin-top: 0.6rem;
             margin-bottom: 0.9rem;
-        }
-        .answer-card h4 {
+        }}
+        .answer-card h4 {{
+            display: flex;
+            align-items: center;
             font-family: 'Space Grotesk', sans-serif;
             font-size: 0.95rem;
-            color: var(--c-ash-dark);
+            color: var(--c-brown-light);
             text-transform: uppercase;
             letter-spacing: 0.06em;
             margin-bottom: 0.6rem;
-        }
-        .answer-text {
+        }}
+        .answer-text {{
             font-family: 'Inter', sans-serif;
             font-size: 1.0rem;
-            color: var(--c-black);
+            color: var(--c-white);
             line-height: 1.6;
-        }
-        .answer-text ul { margin: 0.3rem 0 0.3rem 1.1rem; padding: 0; }
-        .answer-text li { margin-bottom: 0.25rem; }
+        }}
+        .answer-text a {{ color: var(--c-blue); }}
+        .answer-text ul {{ margin: 0.3rem 0 0.3rem 1.1rem; padding: 0; }}
+        .answer-text li {{ margin-bottom: 0.25rem; }}
 
-        .strategy-badge {
+        .strategy-badge {{
             display: inline-block;
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.78rem;
             padding: 0.3rem 0.7rem;
             border-radius: 8px;
             margin-top: 0.9rem;
-        }
-        .strategy-badge.hybrid {
+        }}
+        .strategy-badge.hybrid {{
             background: linear-gradient(135deg, var(--c-blue), var(--c-blue-light));
-            color: var(--c-white);
+            color: #0B0B0D;
             box-shadow: 0 2px 10px var(--c-blue-glow);
-        }
-        .strategy-badge.vector {
-            background: var(--c-ash);
-            color: var(--c-black);
-        }
+        }}
+        .strategy-badge.vector {{
+            background: linear-gradient(135deg, var(--c-brown), var(--c-brown-light));
+            color: #241708;
+        }}
 
-        div[data-testid="stButton"] button[kind="primary"] {
-            background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-blue-light) 100%);
+        /* --- Ask panel: an ash card wrapping the input, instead of bare white space --- */
+        .ask-panel {{
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+            border: 1px solid var(--c-ash-line);
+            border-radius: 18px;
+            padding: 1.6rem 1.8rem 1.3rem 1.8rem;
+            margin-top: 1rem;
+            margin-bottom: 1.1rem;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.30);
+        }}
+        .ask-panel-label {{
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 1.0rem;
+            color: var(--c-white);
+            margin-bottom: 0.9rem;
+        }}
+        .ask-panel .node-field {{ opacity: 0.55; }}
+
+        .chip-row {{ position: relative; z-index: 1; display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }}
+        .example-chip {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.74rem;
+            color: var(--c-ash-dark);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--c-ash-line);
+            border-radius: 999px;
+            padding: 0.3rem 0.75rem;
+        }}
+
+        div[data-testid="stTextInput"] {{ position: relative; z-index: 1; }}
+        div[data-testid="stTextInput"] label {{
+            color: var(--c-ash-dark) !important;
+            font-family: 'Inter', sans-serif;
+        }}
+        div[data-testid="stTextInput"] input {{
+            background: rgba(0,0,0,0.28) !important;
+            border: 1px solid var(--c-ash-line) !important;
+            border-radius: 10px !important;
+            color: var(--c-white) !important;
+            caret-color: var(--c-brown-light);
+        }}
+        div[data-testid="stTextInput"] input:focus {{
+            border: 1px solid var(--c-brown) !important;
+            box-shadow: 0 0 0 3px var(--c-brown-glow) !important;
+        }}
+        div[data-testid="stTextInput"] input::placeholder {{ color: var(--c-ash-dim) !important; }}
+
+        div[data-testid="stButton"] button[kind="primary"] {{
+            position: relative;
+            z-index: 1;
+            background: linear-gradient(135deg, var(--c-brown) 0%, var(--c-blue) 130%);
             border: none;
             font-family: 'Inter', sans-serif;
             font-weight: 600;
-            box-shadow: 0 4px 14px var(--c-blue-glow);
+            color: #12100E;
+            box-shadow: 0 4px 14px var(--c-brown-glow);
             transition: box-shadow 0.2s ease, transform 0.15s ease;
-        }
-        div[data-testid="stButton"] button[kind="primary"]:hover {
-            box-shadow: 0 6px 20px var(--c-blue-glow);
+        }}
+        div[data-testid="stButton"] button[kind="primary"]:hover {{
+            box-shadow: 0 6px 22px var(--c-blue-glow);
             transform: translateY(-1px);
-        }
+        }}
 
-        code, .stCodeBlock, pre {
+        .stTabs [data-baseweb="tab"] {{ color: var(--c-ash-dark); }}
+        .stTabs [aria-selected="true"] {{ color: var(--c-blue-light) !important; }}
+        div[data-testid="stExpander"] {{
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--c-ash-line);
+            border-radius: 12px;
+        }}
+
+        code, .stCodeBlock, pre {{
             font-family: 'JetBrains Mono', monospace !important;
-        }
+        }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -208,14 +361,18 @@ st.markdown(
 # ---------------------------------------------------------------------------
 st.markdown(
     f"""
-    <div class="nova-title">{PROJECT_TITLE}</div>
-    <div class="nova-subtitle">{PROJECT_SUBTITLE}</div>
-    <div class="nova-description">{PROJECT_DESCRIPTION}</div>
-    <div class="pill-row">
-        <div class="pill">Hybrid Retrieval</div>
-        <div class="pill">Knowledge Graph</div>
-        <div class="pill">Agent AI</div>
-        <div class="pill">Single-hop &amp; Multi-hop</div>
+    <div class="hero-wrap">
+        <div class="node-field"></div>
+        <div class="node-field field-2"></div>
+        <div class="nova-title">{PROJECT_TITLE}</div>
+        <div class="nova-subtitle">{PROJECT_SUBTITLE}</div>
+        <div class="nova-description">{PROJECT_DESCRIPTION}</div>
+        <div class="pill-row">
+            <div class="pill"><span class="dot"></span>Hybrid Retrieval</div>
+            <div class="pill"><span class="dot"></span>Knowledge Graph</div>
+            <div class="pill"><span class="dot"></span>Agent AI</div>
+            <div class="pill"><span class="dot"></span>Single-hop &amp; Multi-hop</div>
+        </div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -227,11 +384,32 @@ tab_ask, tab_about = st.tabs(["Ask", "About the Knowledge Base"])
 # Tab 1 — Ask
 # ---------------------------------------------------------------------------
 with tab_ask:
+    st.markdown(
+        """
+        <div class="ask-panel">
+            <div class="node-field field-2" style="top:-40px; right:-20px; width:200px; height:200px;"></div>
+            <div class="ask-panel-label">
+                <span class="badge-icon"></span> Ask NOVA about the corpus
+            </div>
+        """,
+        unsafe_allow_html=True,
+    )
     question = st.text_input(
         "Ask a question from the corpus:",
         placeholder="e.g. What is SkillOpt? · or · Compare Gorilla and MRKL Systems.",
     )
     ask_clicked = st.button("Ask", type="primary")
+    st.markdown(
+        """
+            <div class="chip-row">
+                <span class="example-chip">What is MRKL Systems?</span>
+                <span class="example-chip">Compare Gorilla and MRKL Systems</span>
+                <span class="example-chip">How are agent skills connected to tool use?</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     if ask_clicked and question.strip():
         with st.spinner("Routing → retrieving → reasoning..."):
@@ -260,7 +438,7 @@ with tab_ask:
                     st.markdown(
                         f"""
                         <div class="answer-card">
-                            <h4>Answer</h4>
+                            <h4><span class="badge-icon"></span>Answer</h4>
                             <div class="answer-text">{result['answer']}</div>
                             <span class="strategy-badge {badge_class}">{badge_label}</span>
                         </div>
@@ -285,7 +463,7 @@ with tab_about:
     st.markdown(
         f"""
         <div class="answer-card">
-            <h4>Corpus</h4>
+            <h4><span class="badge-icon"></span>Corpus</h4>
             <div class="answer-text">
                 NOVA is built over a curated corpus of <strong>30 full-text research
                 papers on AI agent capabilities</strong>, sourced from the
@@ -301,42 +479,10 @@ with tab_about:
         unsafe_allow_html=True,
     )
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(
-            """
-            <div class="answer-card">
-                <h4>Tool-use — 19 papers</h4>
-                <div class="answer-text">
-                    How agents discover available tools, select the right one for a
-                    task, generate API calls, chain multiple tools together, and
-                    learn tool-use strategies. Covers systems such as MRKL, Gorilla,
-                    tool-augmented language models, and API-based agents.
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with col2:
-        st.markdown(
-            """
-            <div class="answer-card">
-                <h4>Knowledge — 11 papers</h4>
-                <div class="answer-text">
-                    How agents access, organize, and reason over knowledge —
-                    external retrieval, internal memory, knowledge graphs,
-                    long-term agent memory, and structured multi-step reasoning
-                    across sources.
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
     st.markdown(
         """
         <div class="answer-card">
-            <h4>How NOVA works</h4>
+            <h4><span class="badge-icon"></span>How NOVA works</h4>
             <div class="answer-text">
                 NOVA combines semantic vector retrieval, BM25 keyword retrieval,
                 Retrieval-Augmented Generation, a Neo4j knowledge graph, and
@@ -355,118 +501,10 @@ with tab_about:
         unsafe_allow_html=True,
     )
 
-    col3, col4 = st.columns(2)
-    with col3:
-        st.markdown(
-            """
-            <div class="answer-card">
-                <h4>Semantic vector search</h4>
-                <div class="answer-text">
-                    Retrieves passages by meaning. A question like
-                    <em>"How do agents interact with external services?"</em>
-                    still matches sections using different wording — "tool
-                    invocation," "API execution," "external tool calling" —
-                    because their meanings are close, even if the exact words differ.
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with col4:
-        st.markdown(
-            """
-            <div class="answer-card">
-                <h4>BM25 keyword search</h4>
-                <div class="answer-text">
-                    Retrieves passages by exact words and term importance —
-                    especially useful for model names, system names, acronyms,
-                    dataset names, and technical terms. A question naming
-                    "MRKL," "Gorilla," or a specific benchmark benefits from
-                    exact keyword matching that semantic search alone can blur.
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
     st.markdown(
         """
         <div class="answer-card">
-            <h4>Knowledge graph support</h4>
-            <div class="answer-text">
-                The knowledge graph stores papers, methods, concepts, datasets,
-                and tasks as connected nodes and relationships, for example:
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.code(
-        "Paper  → PROPOSES         → Method\n"
-        "Paper  → MENTIONS_CONCEPT → Concept\n"
-        "Paper  → EVALUATED_ON     → Dataset\n"
-        "Paper  → SOLVES_TASK      → Task\n"
-        "Method → SUPPORTS         → Concept",
-        language="text",
-    )
-    st.markdown(
-        """
-        <div class="answer-text" style="margin-bottom: 1.2rem;">
-            Instead of only finding chunks that contain the phrase "Agent Skills,"
-            the knowledge graph can also surface papers related to that concept
-            and the methods associated with it — especially useful for questions
-            that require relationships or comparisons across papers.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-        <div class="answer-card">
-            <h4>Ask a direct question (single-hop)</h4>
-            <div class="answer-text">
-                A direct question usually asks for one specific piece of
-                information. NOVA searches the corpus, retrieves the most
-                relevant sections, reranks them, and generates a grounded answer.
-                <ul>
-                    <li>"What is MRKL Systems?"</li>
-                    <li>"What is SkillOpt?"</li>
-                    <li>"Which paper proposed Gorilla?"</li>
-                </ul>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-        <div class="answer-card">
-            <h4>Ask a comparison or connection question (multi-hop)</h4>
-            <div class="answer-text">
-                A multi-hop question needs information from more than one paper,
-                concept, or method:
-                <ul>
-                    <li>"Compare Gorilla and MRKL Systems."</li>
-                    <li>"How are agent skills connected to tool use?"</li>
-                    <li>"What is the relationship between self-evolution and reinforcement learning?"</li>
-                </ul>
-                For these, NOVA identifies the question as multi-hop, divides it
-                into sub-questions, retrieves evidence for each one separately,
-                checks the knowledge graph for related facts, answers each
-                sub-question, and combines the results into one final response —
-                reasoning across multiple papers rather than a single passage.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-        <div class="answer-card">
-            <h4>What you receive</h4>
+            <h4><span class="badge-icon"></span>What you receive</h4>
             <div class="answer-text">
                 For each question, NOVA returns a generated answer, the retrieval
                 strategy used (vector-only or hybrid), and the supporting source
