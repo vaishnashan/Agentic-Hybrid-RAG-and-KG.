@@ -17,23 +17,25 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download the embedding + reranker models INTO THE IMAGE at build time.
-# Without this, dense_retriever.py / reranker.py lazy-load them on the first
-# real request instead — meaning the first query after every container start
-# pays the full HF Hub download cost (slower still since it's unauthenticated),
-# often blowing past the UI's request timeout. Baking them in means every
-# container starts with both models already on disk, cold or not.
+# Pre-download ONLY the reranker model INTO THE IMAGE at build time. The
+# dense-retrieval embedding model is deliberately NOT loaded here — query
+# embeddings are fetched from a cloud inference API at request time (see
+# utils/retrieval/query_embedder.py), specifically so this image doesn't
+# need to carry sentence-transformers' embedding model weights. The
+# reranker still runs in-process (no equivalent cloud API), so it's baked
+# in here to avoid a slow first-request download.
+# Set RERANKER_ENABLED=false in .env to skip the reranker step entirely on
+# very constrained hosts — see utils/retrieval/reranker.py.
 ENV HF_HOME=/app/.cache/huggingface
 RUN python -c "\
-from sentence_transformers import SentenceTransformer, CrossEncoder; \
-SentenceTransformer('BAAI/bge-small-en-v1.5'); \
+from sentence_transformers import CrossEncoder; \
 CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
 
-# Copies utils/ (agent4, api7, retrieval2, ingestion1, knowledge_graph3,
-# observability5, evaluation6) AND data/processed/bm25_index.pkl —
-# sparse_retriever.py reads that pickle file directly from disk at query
-# time, so it must ship inside the image, not just the code. See
-# .dockerignore — it deliberately does NOT exclude data/processed.
+# Copies utils/ (storage, retrieval, agent, observability) AND
+# data/processed/bm25_index.pkl — sparse_retriever.py reads that pickle
+# file directly from disk at query time, so it must ship inside the image,
+# not just the code. See .dockerignore — it deliberately does NOT exclude
+# data/processed.
 COPY . .
 
 # Run as non-root — no reason this process needs root inside the container.
@@ -53,4 +55,4 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 # assigns its own PORT at runtime and expects the app to listen on THAT, not
 # on a hardcoded port. Falls back to 8000 so local docker-compose (which maps
 # a fixed 8000:8000) keeps working unchanged.
-CMD ["sh", "-c", "uvicorn utils.api7.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

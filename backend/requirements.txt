@@ -1,15 +1,18 @@
-# --- Ingestion (Week 1) ---
+# --- Storage: load + chunk (utils/storage/loader.py, chunker.py) ---
 pdfplumber
 langchain
 langchain-text-splitters
 langchain-community
 
-# --- Retrieval (Week 1) ---
+# --- Storage: dense + sparse index (utils/storage/dense_index.py, bm25_index.py) ---
+# sentence-transformers is used at BUILD time (local embedding) and by
+# retrieval/reranker.py (cross-encoder) — NOT for query-time embeddings,
+# which call a cloud API instead (utils/retrieval/query_embedder.py).
 sentence-transformers
 chromadb
 rank_bm25
 
-# --- Knowledge graph (Week 1) ---
+# --- Storage: knowledge graph (utils/storage/graph_index.py, neo4j_client.py) ---
 neo4j
 networkx
 

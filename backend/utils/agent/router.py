@@ -19,7 +19,7 @@ want that keyword signal back (e.g. a single-hop question that's still clearly
 relational), it can be re-added as an explicit second input to route(), rather than
 silently overriding the hop-type decision.
 """
-from codebase.backend.utils.agent.schemas import RouteDecision
+from .schemas import RouteDecision
 
 
 def route(question: str, requires_graph_hint: bool = False) -> RouteDecision:

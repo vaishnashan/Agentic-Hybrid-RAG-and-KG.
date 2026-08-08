@@ -9,23 +9,20 @@ circuit_breaker.llm_breaker for sustained Groq outages — see resilience/ for w
 these are two different mechanisms.
 """
 import json
-import os
 from typing import List
 
 import requests
-from dotenv import load_dotenv
 from pybreaker import CircuitBreakerError
 
-from codebase.backend.utils.agent.schemas import ReasonerOutput
-from codebase.backend.utils.storage.retrieval.sparse_retriever import RetrievedChunk
-from codebase.backend.utils.agent.circuit_breaker import llm_breaker
-from codebase.backend.utils.agent.retry_policy import with_retries
+from ..retrieval.sparse_retriever import RetrievedChunk
+from ..storage.config import GROQ_AGENT_MODEL, GROQ_API_KEY, GROQ_URL
+from .circuit_breaker import llm_breaker
+from .retry_policy import with_retries
+from .schemas import ReasonerOutput
 
-load_dotenv()
-
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
-GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+# Agent reasoning uses Llama-3.3-70B-Versatile via Groq (see storage/config.py
+# for the current-deprecation note and the GROQ_AGENT_MODEL override).
+GROQ_MODEL = GROQ_AGENT_MODEL
 
 REASONER_PROMPT = """Answer the question using ONLY the context below. If the context
 is insufficient to answer confidently, say so explicitly rather than guessing.

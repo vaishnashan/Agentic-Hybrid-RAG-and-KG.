@@ -11,22 +11,20 @@ with .get() defaults.
 """
 import json
 import logging
-import os
 import re
 from typing import List, Optional
 
 import requests
-from dotenv import load_dotenv
 from pydantic import BaseModel, ValidationError
 
-from codebase.backend.utils.agent.schemas import PlannerOutput, SubQuestion
+from ..storage.config import GROQ_AGENT_MODEL, GROQ_API_KEY, GROQ_URL
+from .schemas import PlannerOutput, SubQuestion
 
-load_dotenv()
 logger = logging.getLogger("planner")
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
-GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+# Agent reasoning uses Llama-3.3-70B-Versatile via Groq (see storage/config.py
+# for the current-deprecation note and the GROQ_AGENT_MODEL override).
+GROQ_MODEL = GROQ_AGENT_MODEL
 
 MULTI_HOP_SIGNALS = [
     "compare", "relationship between", "how does", "and", "versus", "vs",

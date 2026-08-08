@@ -7,11 +7,10 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
-from codebase.backend.utils.agent.graph_definition import ask
-from codebase.backend.utils.agent.schemas import FinalAnswer
-
-from codebase.backend.utils.api7.auth import require_api_key
-from codebase.backend.utils.api7.rate_limit import limiter
+from ...graph_definition import ask
+from ...schemas import FinalAnswer
+from ..auth import require_api_key
+from ..rate_limit import limiter
 
 router = APIRouter()
 
